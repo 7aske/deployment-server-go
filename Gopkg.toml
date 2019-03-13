@@ -1,0 +1,9 @@
+[[constraint]]
+  name = "github.com/dgrijalva/jwt-go"
+  branch = "3.2.0"
+[[constraint]]
+  name = "github.com/go-ini/ini"
+  branch = "1.42.0"
+[[constraint]]
+  name = "github.com/pkg/errors"
+  branch = "0.8.1"
