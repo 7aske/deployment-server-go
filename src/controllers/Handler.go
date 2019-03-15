@@ -3,57 +3,206 @@ package controllers
 import (
 	"../config"
 	"../utils"
+	json2 "encoding/json"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type Handler struct {
-	config   config.Config
-	deployer Deployer
+	config                    *config.Config
+	deployer                  Deployer
+	statusInternalServerError []byte
+	statusOK                  []byte
+	statusUnauthorized        []byte
+	statusNotFound            []byte
+	statusMethodNotAllowed    []byte
 }
 
-func (h Handler) LoadConfig() {
-	h.config = config.LoadConfig()
-
+type DeployRequest struct {
+	Token string `json:"token"`
+	Repo  string `json:"repo"`
 }
+type FindResponse struct {
+	Running  []AppJSON  `json:"running"`
+	Deployed *[]AppJSON `json:"deployed"`
+}
+
+//func (h Handler) LoadConfig() {
+//	h.config = config.LoadConfig()
+//
+//}
 func (h *Handler) SetConfig(c *config.Config) {
-	h.config = *c
+	h.config = c
 }
 
 func (h *Handler) GetConfig() *config.Config {
-	return &h.config
+	return h.config
+}
+func (h *Handler) SetDeployer(d *Deployer) {
+	h.deployer = *d
+}
+
+func (h *Handler) GetDeployer() *Deployer {
+	return &h.deployer
 }
 
 func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		jsonBody := utils.GetJsonMap(r.Body)
+		//name := utils.GetNameFromRepo(jsonBody["repo"])
+		app, err := h.GetDeployer().Deploy(jsonBody["repo"], "node")
+		err = h.GetDeployer().Install(app)
+		err = h.GetDeployer().Run(app)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			length, _ := w.Write(h.statusInternalServerError)
+			w.Header().Set("Content-Length", strconv.Itoa(length))
+		} else {
+			w.WriteHeader(http.StatusOK)
+			length, _ := w.Write(h.statusOK)
+			w.Header().Set("Content-Length", strconv.Itoa(length))
+		}
+	} else {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		length, _ := w.Write(h.statusMethodNotAllowed)
+		w.Header().Set("Content-Length", strconv.Itoa(length))
+	}
 }
 func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		body := utils.GetJsonMap(r.Body)
+		name := body["app"]
+		if appJson, ok := h.GetDeployer().GetAppD(name); ok {
+			app := NewAppFromJson(appJson)
+			if h.GetDeployer().IsAppRunning(app) {
+				w.WriteHeader(http.StatusInternalServerError)
+				length, _ := w.Write(h.statusInternalServerError)
+				w.Header().Set("Content-Length", strconv.Itoa(length))
+			} else {
+				err := h.GetDeployer().Run(app)
+				fmt.Println(app.GetPid())
+				if err != nil {
+					fmt.Println(err)
+				}
+				w.WriteHeader(http.StatusOK)
+				length, _ := w.Write(h.statusOK)
+				w.Header().Set("Content-Length", strconv.Itoa(length))
+			}
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			length, _ := w.Write(h.statusInternalServerError)
+			w.Header().Set("Content-Length", strconv.Itoa(length))
+		}
+	} else {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		length, _ := w.Write(h.statusMethodNotAllowed)
+		w.Header().Set("Content-Length", strconv.Itoa(length))
+	}
+}
+func (h *Handler) HandleFind(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		apps := h.GetDeployer().GetAppsJSON()
+		appD := h.GetDeployer().GetAppsD()
+		json, _ := json2.Marshal(&FindResponse{Running: apps, Deployed: appD})
+		length, _ := w.Write(json)
+		w.Header().Set("Content-Length", strconv.Itoa(length))
+	} else {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		length, _ := w.Write(h.statusMethodNotAllowed)
+		w.Header().Set("Content-Length", strconv.Itoa(length))
+	}
 }
 func (h *Handler) HandleKill(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		body := utils.GetJsonMap(r.Body)
+		name := body["app"]
+		if app, ok := h.GetDeployer().GetRunningApp(name); ok {
+			h.GetDeployer().Kill(app)
+			w.WriteHeader(http.StatusOK)
+			length, _ := w.Write(h.statusOK)
+			w.Header().Set("Content-Length", strconv.Itoa(length))
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			length, _ := w.Write(h.statusInternalServerError)
+			w.Header().Set("Content-Length", strconv.Itoa(length))
+		}
+	} else {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		length, _ := w.Write(h.statusMethodNotAllowed)
+		w.Header().Set("Content-Length", strconv.Itoa(length))
+	}
+
 }
 func (h *Handler) HandleRemove(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		body := utils.GetJsonMap(r.Body)
+		name := body["app"]
+		if appJson, ok := h.GetDeployer().GetAppD(name); ok {
+			if app, ok := h.GetDeployer().GetRunningApp(appJson.Id); ok {
+				h.GetDeployer().Kill(app)
+			}
+			h.GetDeployer().Remove(appJson)
+			w.WriteHeader(http.StatusOK)
+			length, _ := w.Write(h.statusOK)
+			w.Header().Set("Content-Length", strconv.Itoa(length))
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			length, _ := w.Write(h.statusInternalServerError)
+			w.Header().Set("Content-Length", strconv.Itoa(length))
+		}
+	} else {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		length, _ := w.Write(h.statusMethodNotAllowed)
+		w.Header().Set("Content-Length", strconv.Itoa(length))
+	}
+
 }
 func (h *Handler) HandleSettings(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie("Authorization"); err != nil {
-		//w.WriteHeader(http.StatusUnauthorized)
-		//_, _ = fmt.Fprint(w, "( ͠° ͟ʖ ͡°) 401 Unauthorized")
 		http.Redirect(w, r, "/auth", 301)
 	} else {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
 		if h.verifyToken(token) {
-			w.WriteHeader(http.StatusOK)
-			length, _ := w.Write([]byte("( ͡ᵔ ͜ʖ ͡ᵔ ) 200 OK"))
-			w.Header().Set("Content-Length", strconv.Itoa(length))
+			var absPth string
+			pth := strings.Replace(r.URL.String(), "/", string(filepath.Separator), -1)
+			root := "client/dist"
+			if pth == "/" || pth == "\\" {
+				absPth = root
+			} else {
+				absPth = path.Join(root, pth)
+			}
+			if fi, err := os.Stat(absPth); err == nil && fi.IsDir() {
+				if dir, err := ioutil.ReadDir(absPth); err == nil {
+					if utils.ContainsFile("index.html", &dir) {
+						w.Header().Set("Content-Type", "text/html; charset=utf-8")
+						http.ServeFile(w, r, path.Join(absPth, "index.html"))
+					}
+				} else {
+					w.WriteHeader(http.StatusInternalServerError)
+					length, _ := w.Write(h.statusInternalServerError)
+					w.Header().Set("Content-Length", strconv.Itoa(length))
+				}
+			} else if err == nil {
+				http.ServeFile(w, r, absPth)
+			} else {
+				w.WriteHeader(http.StatusNotFound)
+				length, _ := w.Write(h.statusNotFound)
+				w.Header().Set("Content-Length", strconv.Itoa(length))
+			}
 		} else {
-			//w.WriteHeader(http.StatusUnauthorized)
-			//_, _ = fmt.Fprint(w, "( ͠° ͟ʖ ͡°) 401 Unauthorized")
 			http.Redirect(w, r, "/auth", 301)
 		}
 	}
@@ -67,20 +216,8 @@ func (h *Handler) HandleAuth(w http.ResponseWriter, r *http.Request) {
 			token := h.makeToken()
 			cookie := http.Cookie{Name: "Authorization", Value: fmt.Sprintf("Bearer %s", token), Path: "/", Expires: time.Now().Add(24 * time.Hour)}
 			http.SetCookie(w, &cookie)
-			//type Response struct {
-			//	Token string `json:"token"`
-			//}
-			//res := Response{Token: token}
-			//jsonRes, err := json.Marshal(res)
-			//if err != nil {
-			//	fmt.Println(err)
-			//}
-			//w.Header().Set("Content-Type", "application/json")
-			//_, _ = w.Write(jsonRes)
 			http.Redirect(w, r, "/", 301)
 		} else {
-			//w.WriteHeader(http.StatusUnauthorized)
-			//_, _ = fmt.Fprint(w, "( ͠° ͟ʖ ͡°) 401 Unauthorized")
 			http.Redirect(w, r, "/auth", 301)
 		}
 		break
@@ -88,7 +225,7 @@ func (h *Handler) HandleAuth(w http.ResponseWriter, r *http.Request) {
 		if cookie, err := r.Cookie("Authorization"); err == nil {
 			token := strings.Split(cookie.Value, "Bearer ")[1]
 			if h.verifyToken(token) {
-				http.Redirect(w,r,"/", 301)
+				http.Redirect(w, r, "/", 301)
 				break
 			}
 		}
@@ -133,6 +270,13 @@ func (h *Handler) verifyToken(tokenString string) bool {
 	return true
 }
 
-func NewHandler() Handler {
-	return Handler{}
+func NewHandler(cfg *config.Config) Handler {
+	h := Handler{}
+	h.config = cfg
+	h.statusInternalServerError = []byte("( ͠° ͟ʖ ͡°) 500 INTERNAL SERVER ERROR")
+	h.statusNotFound = []byte("( ͡° ʖ̯ ͡°) 404 NOT FOUND")
+	h.statusUnauthorized = []byte("( ͠° ͟ʖ ͡°) 401 UNAUTHORIZED")
+	h.statusMethodNotAllowed = []byte("( ͠° ͟ʖ ͡°) 405 METHOD NOT ALLOWED")
+	h.statusOK = []byte("( ͡ᵔ ͜ʖ ͡ᵔ ) 200 OK")
+	return h
 }

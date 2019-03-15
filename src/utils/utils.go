@@ -3,8 +3,12 @@ package utils
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
+	"regexp"
 )
 
 func RenderLoginPage() []byte {
@@ -92,6 +96,7 @@ func Contains(q string, s *[]string) int {
 	return -1
 }
 
+
 func ContainsFile(q string, dir *[]os.FileInfo) bool {
 	for _, file := range *dir {
 		if file.Name() == q {
@@ -103,19 +108,29 @@ func ContainsFile(q string, dir *[]os.FileInfo) bool {
 func PrintHelp() {
 	fmt.Println("usage: [...options] [...flags]")
 	fmt.Println()
-	fmt.Println("-p  <port>      specify routes port")
-	fmt.Println("-f  <folder>    specify source folder")
-	fmt.Println("-pw <pass>      specify routes password")
-	fmt.Println("                only works with --auth flag")
-	fmt.Println("-s  <secret>    specify hash secret")
-	fmt.Println("                only works with --auth flag")
-	fmt.Println("--index         enable auto serve index.html")
-	fmt.Println("--cors          enable Cross-Origin headers")
-	fmt.Println("--silent        suppress logging")
-	fmt.Println("--auth          enables authentication")
+	fmt.Println("--client		enables client")
+	fmt.Println("--auth			enables authentication")
 }
 func Hash(str string) string {
 	h := sha256.New()
 	h.Write([]byte(str))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func GetJsonMap(body io.ReadCloser) map[string]string{
+	output := make(map[string]string)
+	jsonBytes, _ := ioutil.ReadAll(body)
+	_ = json.Unmarshal(jsonBytes, &output)
+	return output
+}
+
+func GetNameFromRepo(repo string) string {
+	reg, _ := regexp.Compile("([^/]+$)")
+	return string(reg.Find([]byte(repo)))
+}
+
+func MakeDirIfNotExist(pth string){
+	if _, err := os.Stat(pth); err != nil {
+		_ = os.MkdirAll(pth, 0775)
+	}
 }

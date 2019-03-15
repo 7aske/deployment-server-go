@@ -1,4 +1,5 @@
 bin
+apps
 .idea
-
+node_modules
 *.cfg
