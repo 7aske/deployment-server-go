@@ -21,6 +21,10 @@ port = 8080
 secret = somesecretstring
 user = admin
 pass = admin
+
+[deployer]
+root   = /home/nik/Documents/CODE/go/deployment-server-go/apps
+server = /home/nik/Documents/CODE/go/deployment-server-go/server/server.js
 ```
 
 ####Additional options
