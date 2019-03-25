@@ -123,11 +123,9 @@ func (d *Deployer) RemoveApp(a *App) {
 }
 func (d *Deployer) RemoveAppD(a *AppJSON) {
 	var newApps []AppJSON
-	if d.IsAppRunning(NewAppFromJson(a)) {
-		for _, app := range d.appsD {
-			if !(app.Name == a.Name || app.Repo == a.Repo || app.Id == a.Id) {
-				newApps = append(newApps, app)
-			}
+	for _, app := range d.appsD {
+		if !(app.Name == a.Name || app.Repo == a.Repo || app.Id == a.Id) {
+			newApps = append(newApps, app)
 		}
 	}
 	d.appsD = newApps
@@ -137,12 +135,9 @@ func (d *Deployer) Deploy(repo string, runner string) (*App, error) {
 	name := utils.GetNameFromRepo(repo)
 	app := NewApp(repo, name, runner)
 	app.SetRoot(path.Join(d.GetConfig().GetAppsRoot(), app.GetName()))
-	fmt.Println(app.GetRoot())
-	fmt.Println(app.GetRunner())
+	//fmt.Println(app.GetRoot())
+	//fmt.Println(app.GetRunner())
 	if _, ok := d.GetAppD(repo); !ok {
-		//if _, err := os.Stat(app.GetRoot()); err == nil {
-		//	_ = os.RemoveAll(app.GetRoot())
-		//}
 		git := exec.Command("git", "-C", d.GetConfig().GetAppsRoot(), "clone", repo)
 		git.Stdout = os.Stdout
 		git.Stderr = os.Stderr
@@ -204,6 +199,7 @@ func (d *Deployer) Run(a *App) error {
 		port := a.GetPort()
 		if port == 0 {
 			a.SetPort(d.generatePort())
+			port = a.GetPort()
 		}
 		node.Env = append(node.Env, fmt.Sprintf("PORT=%d", port))
 		node.Stdout = os.Stdout
@@ -226,6 +222,7 @@ func (d *Deployer) Run(a *App) error {
 		port := a.GetPort()
 		if port == 0 {
 			a.SetPort(d.generatePort())
+			port = a.GetPort()
 		}
 		node.Env = append(node.Env, fmt.Sprintf("PORT=%d", port))
 		node.Stdout = os.Stdout
@@ -262,7 +259,7 @@ func (d *Deployer) Remove(app *AppJSON) {
 			if err != nil {
 				fmt.Println(err)
 			}
-			d.RemoveAppD(app)
+			d.RemoveAppFromJson(*app)
 		}
 	}
 }
@@ -346,6 +343,7 @@ func (d *Deployer) SaveAppToJson(app AppJSON) {
 func (d *Deployer) initAppsJson() {
 	pth := path.Join(d.GetConfig().GetAppsRoot(), "apps.json")
 	if _, err := os.Stat(pth); err != nil {
+		fmt.Println("initializing apps folder")
 		emptyArr, _ := json.Marshal(&AppsJSON{Apps: []AppJSON{}})
 		err := ioutil.WriteFile(pth, emptyArr, 0775)
 		if err != nil {

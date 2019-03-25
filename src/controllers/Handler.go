@@ -106,7 +106,6 @@ func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			} else {
 				err := h.GetDeployer().Run(app)
-				fmt.Println(app.GetPid())
 				if err != nil {
 					fmt.Println(err)
 				}

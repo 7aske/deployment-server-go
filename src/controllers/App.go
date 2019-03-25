@@ -143,6 +143,7 @@ func (a *App) SetRunner(r string) {
 	a.runner = r
 }
 func (a *App) Print() {
+	fmt.Println("-running-")
 	fmt.Printf("id:      \t%s\n",a.id)
 	fmt.Printf("repo:    \t%s\n",a.repo)
 	fmt.Printf("name:    \t%s\n",a.name)
@@ -154,4 +155,18 @@ func (a *App) Print() {
 	//fmt.Printf("uptime:  \t%s\n",a.uptime)
 	fmt.Printf("runner:  \t%s\n",a.runner)
 	fmt.Printf("pid:     \t%d\n",a.pid)
+}
+func (a *AppJSON) Print() {
+	fmt.Println("-deployed-")
+	fmt.Printf("id:      \t%s\n",a.Id)
+	fmt.Printf("repo:    \t%s\n",a.Repo)
+	fmt.Printf("name:    \t%s\n",a.Name)
+	fmt.Printf("root:    \t%s\n",a.Root)
+	fmt.Printf("port:    \t%d\n",a.Port)
+	//fmt.Printf("hostname:\t%s\n",a.Hostname)
+	//fmt.Printf("deployed:\t%s\n",a.Deployed)
+	//fmt.Printf("lastRun: \t%s\n",a.LastRun)
+	//fmt.Printf("uptime:  \t%s\n",a.Uptime)
+	fmt.Printf("runner:  \t%s\n",a.Runner)
+	//fmt.Printf("pid:     \t%d\n",a.Pid)
 }

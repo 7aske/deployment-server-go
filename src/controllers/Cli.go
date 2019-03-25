@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"strconv"
 )
 
 type Cli struct {
@@ -20,6 +21,8 @@ func (c *Cli) ParseCommand(args ...string) {
 		case "deploy":
 			if len(args) < 3 {
 				fmt.Println("deploy <repo> <runner>")
+			} else if len(args) == 4 {
+				c.Deploy(fmt.Sprintf("https://github.com/%s/%s", args[1], args[2]), args[3])
 			} else {
 				c.Deploy(args[1], args[2])
 			}
@@ -29,12 +32,41 @@ func (c *Cli) ParseCommand(args ...string) {
 			} else {
 				c.Run(args[1])
 			}
+		case "find":
+			if len(args) == 1 {
+				c.Find("")
+			} else if len(args) == 2 {
+				c.Find(args[1])
+			} else {
+				fmt.Println("find <query>")
+			}
+		case "remove":
+			if len(args) == 2 {
+				c.Remove(args[1])
+			} else {
+				fmt.Println("remove <query>")
+			}
+		case "kill":
+			if len(args) == 2 {
+				c.Kill(args[1])
+			} else {
+				fmt.Println("kill <query>")
+			}
 		}
+
 	}
 }
 func (c *Cli) Deploy(repo string, runner string) {
-	app, _ := c.deployer.Deploy(repo, runner)
-	_ = c.deployer.Install(app)
+	app, err := c.deployer.Deploy(repo, runner)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	err = c.deployer.Install(app)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	app.Print()
 }
 func (c *Cli) Run(query string) {
@@ -44,17 +76,62 @@ func (c *Cli) Run(query string) {
 			fmt.Println("already running")
 		} else {
 			err := c.deployer.Run(app)
-			app.Print()
 			if err != nil {
 				fmt.Println(err)
+				return
 			}
+			app.Print()
 		}
 	} else {
 		fmt.Println("not found")
 	}
 }
+func (c *Cli) Kill(query string) {
+	if app, ok := c.deployer.GetApp(query); ok {
+		c.deployer.Kill(app)
+		fmt.Println("killed app with pid " + strconv.Itoa(app.GetPid()))
+	} else {
+		fmt.Println("not found")
+	}
+}
+func (c *Cli) Remove(query string) {
+	if appJson, ok := c.deployer.GetAppD(query); ok {
+		if app, ok := c.deployer.GetApp(appJson.Id); ok {
+			c.deployer.Kill(app)
+		}
+		c.deployer.Remove(appJson)
+		fmt.Println("removed app with id of " + appJson.Id)
+	} else {
+		fmt.Println("not found")
+	}
+}
+
+func (c *Cli) Find(query string) {
+	apps := c.deployer.GetApps()
+	appsD := c.deployer.GetDeployedApps()
+	if query == "" {
+		for _, a := range *apps {
+			a.Print()
+		}
+		for _, a := range appsD {
+			a.Print()
+		}
+	} else {
+		for _, a := range *apps {
+			if a.id == query || a.name == query || strconv.Itoa(a.pid) == query {
+				a.Print()
+			}
+		}
+		for _, a := range appsD {
+			if a.Id == query || a.Name == query {
+				a.Print()
+			}
+		}
+	}
+}
+
 //func (c *Cli) PutLastCommand() {
-	//fmt.Println(string(c.lastCommand))
+//fmt.Println(string(c.lastCommand))
 //	buffer := bytes.Buffer{}
 //	buffer.Write(c.lastCommand)
 //	os.Stdin = buffer

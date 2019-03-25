@@ -17,6 +17,7 @@ const mimeTypes = {
     ".otf": "application/font-otf",
     ".svg": "application/image/svg+xml"
 };
+console.log("Starting server on port " + process.env.PORT);
 http.createServer((request, response) => {
     let filePath = "." + request.url;
     if (filePath == "./") {
