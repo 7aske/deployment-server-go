@@ -58,19 +58,34 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		jsonBody := utils.GetJsonMap(r.Body)
 		//name := utils.GetNameFromRepo(jsonBody["repo"])
-		app, err := h.GetDeployer().Deploy(jsonBody["repo"], "node")
-		err = h.GetDeployer().Install(app)
-		err = h.GetDeployer().Run(app)
+		app, err := h.GetDeployer().Deploy(jsonBody["repo"], jsonBody["runner"])
 		if err != nil {
 			fmt.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			length, _ := w.Write(h.statusInternalServerError)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
-		} else {
-			w.WriteHeader(http.StatusOK)
-			length, _ := w.Write(h.statusOK)
-			w.Header().Set("Content-Length", strconv.Itoa(length))
+			return
 		}
+		err = h.GetDeployer().Install(app)
+		app.Print()
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			length, _ := w.Write(h.statusInternalServerError)
+			w.Header().Set("Content-Length", strconv.Itoa(length))
+			return
+		}
+		//err = h.GetDeployer().Run(app)
+		//if err != nil {
+		//	fmt.Println(err)
+		//	w.WriteHeader(http.StatusInternalServerError)
+		//	length, _ := w.Write(h.statusInternalServerError)
+		//	w.Header().Set("Content-Length", strconv.Itoa(length))
+		//	return
+		//}
+		w.WriteHeader(http.StatusOK)
+		length, _ := w.Write(h.statusOK)
+		w.Header().Set("Content-Length", strconv.Itoa(length))
 	} else {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		length, _ := w.Write(h.statusMethodNotAllowed)
@@ -112,9 +127,10 @@ func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) HandleFind(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		apps := h.GetDeployer().GetAppsJSON()
-		appD := h.GetDeployer().GetAppsD()
-		json, _ := json2.Marshal(&FindResponse{Running: apps, Deployed: appD})
+		fmt.Println(h.GetDeployer().GetApps())
+		apps := h.GetDeployer().GetAppsAsJSON()
+		appD := h.GetDeployer().GetDeployedApps()
+		json, _ := json2.Marshal(&FindResponse{Running: apps, Deployed: &appD})
 		length, _ := w.Write(json)
 		w.Header().Set("Content-Length", strconv.Itoa(length))
 	} else {
@@ -127,7 +143,7 @@ func (h *Handler) HandleKill(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		body := utils.GetJsonMap(r.Body)
 		name := body["app"]
-		if app, ok := h.GetDeployer().GetRunningApp(name); ok {
+		if app, ok := h.GetDeployer().GetApp(name); ok {
 			h.GetDeployer().Kill(app)
 			w.WriteHeader(http.StatusOK)
 			length, _ := w.Write(h.statusOK)
@@ -149,7 +165,7 @@ func (h *Handler) HandleRemove(w http.ResponseWriter, r *http.Request) {
 		body := utils.GetJsonMap(r.Body)
 		name := body["app"]
 		if appJson, ok := h.GetDeployer().GetAppD(name); ok {
-			if app, ok := h.GetDeployer().GetRunningApp(appJson.Id); ok {
+			if app, ok := h.GetDeployer().GetApp(appJson.Id); ok {
 				h.GetDeployer().Kill(app)
 			}
 			h.GetDeployer().Remove(appJson)

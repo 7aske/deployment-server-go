@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 )
@@ -53,8 +54,7 @@ func (a *App) GetJSON() ([]byte, error) {
 //})
 
 func NewApp(repo string, name string, runner string) *App {
-	a := App{repo: repo, name: name, runner: runner}
-	return &a
+	return &App{repo: repo, name: name, runner: runner}
 }
 func NewAppFromJson(a *AppJSON) *App {
 	return &App{
@@ -141,4 +141,17 @@ func (a *App) GetRunner() string {
 }
 func (a *App) SetRunner(r string) {
 	a.runner = r
+}
+func (a *App) Print() {
+	fmt.Printf("id:      \t%s\n",a.id)
+	fmt.Printf("repo:    \t%s\n",a.repo)
+	fmt.Printf("name:    \t%s\n",a.name)
+	fmt.Printf("root:    \t%s\n",a.root)
+	fmt.Printf("port:    \t%d\n",a.port)
+	//fmt.Printf("hostname:\t%s\n",a.hostname)
+	//fmt.Printf("deployed:\t%s\n",a.deployed)
+	//fmt.Printf("lastRun: \t%s\n",a.lastRun)
+	//fmt.Printf("uptime:  \t%s\n",a.uptime)
+	fmt.Printf("runner:  \t%s\n",a.runner)
+	fmt.Printf("pid:     \t%d\n",a.pid)
 }

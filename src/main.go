@@ -13,5 +13,8 @@ func main() {
 	if utils.Contains("--client", &os.Args) != -1 {
 
 	}
+	if utils.Contains("-i", &os.Args) != -1 {
+
+	}
 	controllers.NewServer()
 }
