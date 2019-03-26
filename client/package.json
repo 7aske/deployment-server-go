@@ -1,0 +1,20 @@
+{
+  "name": "deployment-server-go-client",
+  "version": "1.0.0",
+  "description": "deployment server client",
+  "main": "index.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "deployment",
+    "server",
+    "client"
+  ],
+  "author": "Nikola Tasic",
+  "license": "ISC",
+  "dependencies": {
+    "bootstrap": "^4.3.1",
+    "jquery": "^3.3.1"
+  }
+}

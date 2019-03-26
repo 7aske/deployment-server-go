@@ -62,8 +62,8 @@ func (h *Handler) GetDeployer() *Deployer {
 	return &h.deployer
 }
 
-// TODO: auth
 func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if cookie, err := r.Cookie("Authorization"); err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		length, _ := w.Write(h.statusUnauthorized)
@@ -125,6 +125,7 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if cookie, err := r.Cookie("Authorization"); err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		length, _ := w.Write(h.statusUnauthorized)
@@ -169,6 +170,7 @@ func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if cookie, err := r.Cookie("Authorization"); err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		length, _ := w.Write(h.statusUnauthorized)
@@ -215,6 +217,7 @@ func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (h *Handler) HandleFind(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if cookie, err := r.Cookie("Authorization"); err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		length, _ := w.Write(h.statusUnauthorized)
@@ -223,7 +226,6 @@ func (h *Handler) HandleFind(w http.ResponseWriter, r *http.Request) {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
 		if h.verifyToken(token) {
 			if r.Method == http.MethodGet {
-				fmt.Println(h.GetDeployer().GetApps())
 				apps := h.GetDeployer().GetAppsAsJSON()
 				appD := h.GetDeployer().GetDeployedApps()
 				jsonResponse, _ := json.Marshal(&FindResponse{Running: apps, Deployed: &appD})
@@ -244,6 +246,7 @@ func (h *Handler) HandleFind(w http.ResponseWriter, r *http.Request) {
 
 // TODO: kill error handling
 func (h *Handler) HandleKill(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if cookie, err := r.Cookie("Authorization"); err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		length, _ := w.Write(h.statusUnauthorized)
@@ -279,6 +282,7 @@ func (h *Handler) HandleKill(w http.ResponseWriter, r *http.Request) {
 
 }
 func (h *Handler) HandleRemove(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if cookie, err := r.Cookie("Authorization");
 		err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -329,6 +333,9 @@ func (h *Handler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 			var absPth string
 			pth := strings.Replace(r.URL.String(), "/", string(filepath.Separator), -1)
 			root := "client/dist"
+			if strings.HasPrefix(pth, "/node_modules") {
+				root = "client"
+			}
 			if pth == "/" || pth == "\\" {
 				absPth = root
 			} else {
