@@ -151,11 +151,22 @@ func (d *Deployer) Deploy(repo string, runner string) (*App, error) {
 		d.SaveAppToJson(d.GetAppAsJSON(app))
 		return app, nil
 	} else {
-		return &App{}, errors.New("app already deployed")
+		return &App{name: name, repo: repo, runner: runner}, errors.New("app already deployed")
 	}
 
 }
-
+func (d *Deployer) Update(a *App) error {
+	git := exec.Command("git", "-C", a.GetRoot(), "pull")
+	git.Stdout = os.Stdout
+	git.Stderr = os.Stderr
+	err := git.Run()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	d.SaveAppToJson(d.GetAppAsJSON(a))
+	return nil
+}
 func (d *Deployer) Install(a *App) error {
 	switch a.GetRunner() {
 	case "node":
@@ -191,54 +202,9 @@ func (d *Deployer) Install(a *App) error {
 func (d *Deployer) Run(a *App) error {
 	switch a.GetRunner() {
 	case "node":
-		packageJSONFile, _ := ioutil.ReadFile(path.Join(a.GetRoot(), "package.json"))
-		packageJson := PackageJSON{}
-		_ = json.Unmarshal(packageJSONFile, &packageJson)
-		node := exec.Command("node", path.Join(a.GetRoot(), packageJson.Main))
-		node.Dir = a.GetRoot()
-		port := a.GetPort()
-		if port == 0 {
-			a.SetPort(d.generatePort())
-			port = a.GetPort()
-		}
-		node.Env = append(node.Env, fmt.Sprintf("PORT=%d", port))
-		node.Stdout = os.Stdout
-		node.Stderr = os.Stderr
-		err := node.Start()
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-		a.SetLastRun(time.Now())
-		a.SetPid(node.Process.Pid)
-		a.SetProcess(node.Process)
-		d.AddApp(a)
-		d.SaveAppToJson(d.GetAppAsJSON(a))
-		fmt.Printf("starting server with pid - %d on port %d\n", a.GetPid(), a.GetPort())
-		return nil
+		return d.runNode(a)
 	case "web":
-		node := exec.Command("node", d.GetConfig().GetBasicServer())
-		node.Dir = a.GetRoot()
-		port := a.GetPort()
-		if port == 0 {
-			a.SetPort(d.generatePort())
-			port = a.GetPort()
-		}
-		node.Env = append(node.Env, fmt.Sprintf("PORT=%d", port))
-		node.Stdout = os.Stdout
-		node.Stderr = os.Stderr
-		err := node.Start()
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-		a.SetLastRun(time.Now())
-		a.SetPid(node.Process.Pid)
-		a.SetProcess(node.Process)
-		d.AddApp(a)
-		d.SaveAppToJson(d.GetAppAsJSON(a))
-		fmt.Printf("starting server with pid - %d on port %d\n", a.GetPid(), a.GetPort())
-		return nil
+		return d.runWeb(a)
 	default:
 		return errors.New("unsupported runner")
 	}
@@ -286,18 +252,60 @@ func (d *Deployer) GetConfig() *config.Config {
 func (d *Deployer) SetConfig(c *config.Config) {
 	d.config = c
 }
-
-func (d *Deployer) runNode() {
-
+func (d *Deployer) runNode(a *App) error {
+	packageJSONFile, _ := ioutil.ReadFile(path.Join(a.GetRoot(), "package.json"))
+	packageJson := PackageJSON{}
+	_ = json.Unmarshal(packageJSONFile, &packageJson)
+	node := exec.Command("node", path.Join(a.GetRoot(), packageJson.Main))
+	node.Dir = a.GetRoot()
+	port := a.GetPort()
+	if port == 0 {
+		a.SetPort(d.generatePort())
+		port = a.GetPort()
+	}
+	node.Env = append(node.Env, fmt.Sprintf("PORT=%d", port))
+	node.Stdout = os.Stdout
+	node.Stderr = os.Stderr
+	err := node.Start()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	a.SetLastRun(time.Now())
+	a.SetPid(node.Process.Pid)
+	a.SetProcess(node.Process)
+	d.AddApp(a)
+	d.SaveAppToJson(d.GetAppAsJSON(a))
+	fmt.Printf("starting server with pid - %d on port %d\n", a.GetPid(), a.GetPort())
+	return nil
+}
+func (d *Deployer) runWeb(a *App) error {
+	node := exec.Command("node", d.GetConfig().GetBasicServer())
+	node.Dir = a.GetRoot()
+	port := a.GetPort()
+	if port == 0 {
+		a.SetPort(d.generatePort())
+		port = a.GetPort()
+	}
+	node.Env = append(node.Env, fmt.Sprintf("PORT=%d", port))
+	node.Stdout = os.Stdout
+	node.Stderr = os.Stderr
+	err := node.Start()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	a.SetLastRun(time.Now())
+	a.SetPid(node.Process.Pid)
+	a.SetProcess(node.Process)
+	d.AddApp(a)
+	d.SaveAppToJson(d.GetAppAsJSON(a))
+	fmt.Printf("starting server with pid - %d on port %d\n", a.GetPid(), a.GetPort())
+	return nil
 }
 func (d *Deployer) runPython() {
-
 }
 func (d *Deployer) runPythonFlask() {
-
-}
-func (d *Deployer) runWeb() {
-
 }
 
 // load apps from json file into appsD array
@@ -347,9 +355,10 @@ func (d *Deployer) initAppsJson() {
 		emptyArr, _ := json.Marshal(&AppsJSON{Apps: []AppJSON{}})
 		err := ioutil.WriteFile(pth, emptyArr, 0775)
 		if err != nil {
-
 			fmt.Println("json init - " + err.Error())
 		}
+	} else {
+		// TODO: sync folders and apps.json
 	}
 }
 func (d *Deployer) generatePort() int {

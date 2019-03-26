@@ -3,7 +3,7 @@ package controllers
 import (
 	"../config"
 	"../utils"
-	json2 "encoding/json"
+	"encoding/json"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"io/ioutil"
@@ -34,6 +34,14 @@ type FindResponse struct {
 	Running  []AppJSON  `json:"running"`
 	Deployed *[]AppJSON `json:"deployed"`
 }
+type ErrorResponse struct {
+	Message string `json:"message"`
+	Id      string `json:"id"`
+}
+type SuccessResponse struct {
+	Message string `json:"message"`
+	App     AppJSON   `json:"app"`
+}
 
 //func (h Handler) LoadConfig() {
 //	h.config = config.LoadConfig()
@@ -54,6 +62,7 @@ func (h *Handler) GetDeployer() *Deployer {
 	return &h.deployer
 }
 
+// TODO: auth
 func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		jsonBody := utils.GetJsonMap(r.Body)
@@ -61,8 +70,15 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 		app, err := h.GetDeployer().Deploy(jsonBody["repo"], jsonBody["runner"])
 		if err != nil {
 			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			length, _ := w.Write(h.statusInternalServerError)
+			w.WriteHeader(http.StatusForbidden)
+			response := ErrorResponse{Id:app.GetName()}
+			if err.Error() == "exit status 128" {
+				response.Message = "invalid repo"
+			} else {
+				response.Message = err.Error()
+			}
+			jsonResponse, _ := json.Marshal(&response)
+			length, _ := w.Write(jsonResponse)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
 			return
 		}
@@ -70,21 +86,24 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 		app.Print()
 		if err != nil {
 			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			length, _ := w.Write(h.statusInternalServerError)
+			w.WriteHeader(http.StatusForbidden)
+			jsonResponse, _ := json.Marshal(ErrorResponse{Message: err.Error(), Id: app.GetName()})
+			length, _ := w.Write(jsonResponse)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
 			return
 		}
-		//err = h.GetDeployer().Run(app)
-		//if err != nil {
-		//	fmt.Println(err)
-		//	w.WriteHeader(http.StatusInternalServerError)
-		//	length, _ := w.Write(h.statusInternalServerError)
-		//	w.Header().Set("Content-Length", strconv.Itoa(length))
-		//	return
-		//}
+		err = h.GetDeployer().Run(app)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusForbidden)
+			jsonResponse, _ := json.Marshal(ErrorResponse{Message: err.Error(), Id: app.GetName()})
+			length, _ := w.Write(jsonResponse)
+			w.Header().Set("Content-Length", strconv.Itoa(length))
+			return
+		}
 		w.WriteHeader(http.StatusOK)
-		length, _ := w.Write(h.statusOK)
+		jsonResponse, _ := json.Marshal(SuccessResponse{Message: "deployed", App: h.GetDeployer().GetAppAsJSON(app)})
+		length, _ := w.Write(jsonResponse)
 		w.Header().Set("Content-Length", strconv.Itoa(length))
 	} else {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -93,6 +112,7 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
+	// TODO: update
 }
 func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
@@ -101,8 +121,9 @@ func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
 		if appJson, ok := h.GetDeployer().GetAppD(name); ok {
 			app := NewAppFromJson(appJson)
 			if h.GetDeployer().IsAppRunning(app) {
-				w.WriteHeader(http.StatusInternalServerError)
-				length, _ := w.Write(h.statusInternalServerError)
+				w.WriteHeader(http.StatusNoContent)
+				jsonResponse, _ := json.Marshal(ErrorResponse{Message: "app already running", Id: app.GetName()})
+				length, _ := w.Write(jsonResponse)
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			} else {
 				err := h.GetDeployer().Run(app)
@@ -110,12 +131,14 @@ func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
 					fmt.Println(err)
 				}
 				w.WriteHeader(http.StatusOK)
-				length, _ := w.Write(h.statusOK)
+				jsonResponse, _ := json.Marshal(SuccessResponse{Message: "running", App:h.GetDeployer().GetAppAsJSON(app)})
+				length, _ := w.Write(jsonResponse)
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			}
 		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			length, _ := w.Write(h.statusInternalServerError)
+			w.WriteHeader(http.StatusForbidden)
+			jsonResponse, _ := json.Marshal(ErrorResponse{Message: "app not found", Id: name})
+			length, _ := w.Write(jsonResponse)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
 		}
 	} else {
@@ -129,8 +152,8 @@ func (h *Handler) HandleFind(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(h.GetDeployer().GetApps())
 		apps := h.GetDeployer().GetAppsAsJSON()
 		appD := h.GetDeployer().GetDeployedApps()
-		json, _ := json2.Marshal(&FindResponse{Running: apps, Deployed: &appD})
-		length, _ := w.Write(json)
+		jsonResponse, _ := json.Marshal(&FindResponse{Running: apps, Deployed: &appD})
+		length, _ := w.Write(jsonResponse)
 		w.Header().Set("Content-Length", strconv.Itoa(length))
 	} else {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -144,8 +167,8 @@ func (h *Handler) HandleKill(w http.ResponseWriter, r *http.Request) {
 		name := body["app"]
 		if app, ok := h.GetDeployer().GetApp(name); ok {
 			h.GetDeployer().Kill(app)
-			w.WriteHeader(http.StatusOK)
-			length, _ := w.Write(h.statusOK)
+			jsonResponse, _ := json.Marshal(SuccessResponse{Message: "killed", App:h.GetDeployer().GetAppAsJSON(app)})
+			length, _ := w.Write(jsonResponse)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -168,8 +191,8 @@ func (h *Handler) HandleRemove(w http.ResponseWriter, r *http.Request) {
 				h.GetDeployer().Kill(app)
 			}
 			h.GetDeployer().Remove(appJson)
-			w.WriteHeader(http.StatusOK)
-			length, _ := w.Write(h.statusOK)
+			jsonResponse, _ := json.Marshal(SuccessResponse{Message: "removed", App:*appJson})
+			length, _ := w.Write(jsonResponse)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
