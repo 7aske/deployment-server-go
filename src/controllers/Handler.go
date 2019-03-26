@@ -39,8 +39,8 @@ type ErrorResponse struct {
 	Id      string `json:"id"`
 }
 type SuccessResponse struct {
-	Message string `json:"message"`
-	App     AppJSON   `json:"app"`
+	Message string  `json:"message"`
+	App     AppJSON `json:"app"`
 }
 
 //func (h Handler) LoadConfig() {
@@ -71,7 +71,7 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			fmt.Println(err)
 			w.WriteHeader(http.StatusForbidden)
-			response := ErrorResponse{Id:app.GetName()}
+			response := ErrorResponse{Id: app.GetName()}
 			if err.Error() == "exit status 128" {
 				response.Message = "invalid repo"
 			} else {
@@ -112,7 +112,35 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
-	// TODO: update
+	if r.Method == http.MethodPost {
+		body := utils.GetJsonMap(r.Body)
+		name := body["app"]
+		if appJson, ok := h.GetDeployer().GetAppD(name); ok {
+			app := NewAppFromJson(appJson)
+			err := h.GetDeployer().Update(app)
+			if err != nil {
+				fmt.Println(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				jsonResponse, _ := json.Marshal(ErrorResponse{Message: "update failed", Id: name})
+				length, _ := w.Write(jsonResponse)
+				w.Header().Set("Content-Length", strconv.Itoa(length))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			jsonResponse, _ := json.Marshal(SuccessResponse{Message: "updated", App: *appJson})
+			length, _ := w.Write(jsonResponse)
+			w.Header().Set("Content-Length", strconv.Itoa(length))
+		} else {
+			w.WriteHeader(http.StatusForbidden)
+			jsonResponse, _ := json.Marshal(ErrorResponse{Message: "app not found", Id: name})
+			length, _ := w.Write(jsonResponse)
+			w.Header().Set("Content-Length", strconv.Itoa(length))
+		}
+	} else {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		length, _ := w.Write(h.statusMethodNotAllowed)
+		w.Header().Set("Content-Length", strconv.Itoa(length))
+	}
 }
 func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
@@ -131,7 +159,7 @@ func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
 					fmt.Println(err)
 				}
 				w.WriteHeader(http.StatusOK)
-				jsonResponse, _ := json.Marshal(SuccessResponse{Message: "running", App:h.GetDeployer().GetAppAsJSON(app)})
+				jsonResponse, _ := json.Marshal(SuccessResponse{Message: "running", App: *appJson})
 				length, _ := w.Write(jsonResponse)
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			}
@@ -161,6 +189,7 @@ func (h *Handler) HandleFind(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", strconv.Itoa(length))
 	}
 }
+
 // TODO: kill error handling
 func (h *Handler) HandleKill(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
@@ -168,12 +197,13 @@ func (h *Handler) HandleKill(w http.ResponseWriter, r *http.Request) {
 		name := body["app"]
 		if app, ok := h.GetDeployer().GetApp(name); ok {
 			_ = h.GetDeployer().Kill(app)
-			jsonResponse, _ := json.Marshal(SuccessResponse{Message: "killed", App:h.GetDeployer().GetAppAsJSON(app)})
+			jsonResponse, _ := json.Marshal(SuccessResponse{Message: "killed", App: h.GetDeployer().GetAppAsJSON(app)})
 			length, _ := w.Write(jsonResponse)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
-			length, _ := w.Write(h.statusInternalServerError)
+			jsonResponse, _ := json.Marshal(ErrorResponse{Message: "app not found", Id: name})
+			length, _ := w.Write(jsonResponse)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
 		}
 	} else {
@@ -192,12 +222,13 @@ func (h *Handler) HandleRemove(w http.ResponseWriter, r *http.Request) {
 				_ = h.GetDeployer().Kill(app)
 			}
 			h.GetDeployer().Remove(appJson)
-			jsonResponse, _ := json.Marshal(SuccessResponse{Message: "removed", App:*appJson})
+			jsonResponse, _ := json.Marshal(SuccessResponse{Message: "removed", App: *appJson})
 			length, _ := w.Write(jsonResponse)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
-			length, _ := w.Write(h.statusInternalServerError)
+			jsonResponse, _ := json.Marshal(ErrorResponse{Message: "app not found", Id: name})
+			length, _ := w.Write(jsonResponse)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
 		}
 	} else {
@@ -208,6 +239,7 @@ func (h *Handler) HandleRemove(w http.ResponseWriter, r *http.Request) {
 
 }
 func (h *Handler) HandleSettings(w http.ResponseWriter, r *http.Request) {
+	// TODO: settings
 }
 func (h *Handler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie("Authorization"); err != nil {

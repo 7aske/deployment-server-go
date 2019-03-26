@@ -69,16 +69,17 @@ func (d *Deployer) GetApp(search string) (*App, bool) {
 }
 func (d *Deployer) GetAppAsJSON(a *App) AppJSON {
 	return AppJSON{
-		Id:       a.id,
-		Repo:     a.repo,
-		Name:     a.name,
-		Root:     a.root,
-		Port:     a.port,
-		Hostname: a.hostname,
-		Deployed: a.deployed,
-		LastRun:  a.lastRun,
-		Uptime:   a.uptime,
-		Runner:   a.runner,
+		Id:          a.id,
+		Repo:        a.repo,
+		Name:        a.name,
+		Root:        a.root,
+		Port:        a.port,
+		Hostname:    a.hostname,
+		Deployed:    a.deployed,
+		LastUpdated: a.lastUpdated,
+		LastRun:     a.lastRun,
+		Uptime:      a.uptime,
+		Runner:      a.runner,
 	}
 }
 
@@ -88,16 +89,17 @@ func (d *Deployer) GetAppsAsJSON() []AppJSON {
 	var arr []AppJSON
 	for _, a := range *apps {
 		arr = append(arr, AppJSON{
-			Id:       a.id,
-			Repo:     a.repo,
-			Name:     a.name,
-			Root:     a.root,
-			Port:     a.port,
-			Hostname: a.hostname,
-			Deployed: a.deployed,
-			LastRun:  a.lastRun,
-			Uptime:   a.uptime,
-			Runner:   a.runner,
+			Id:          a.id,
+			Repo:        a.repo,
+			Name:        a.name,
+			Root:        a.root,
+			Port:        a.port,
+			Hostname:    a.hostname,
+			Deployed:    a.deployed,
+			LastUpdated: a.lastUpdated,
+			LastRun:     a.lastRun,
+			Uptime:      a.uptime,
+			Runner:      a.runner,
 		})
 	}
 	return arr
@@ -157,7 +159,7 @@ func (d *Deployer) Deploy(repo string, runner string) (*App, error) {
 }
 func (d *Deployer) Update(a *App) error {
 	if d.IsAppRunning(a) {
-		_  = d.Kill(a)
+		_ = d.Kill(a)
 	}
 	git := exec.Command("git", "-C", a.GetRoot(), "pull")
 	git.Stdout = os.Stdout
@@ -167,11 +169,12 @@ func (d *Deployer) Update(a *App) error {
 		fmt.Println(err)
 		return err
 	}
-	err = d.Run(a)
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
+	a.SetLastUpdated(time.Now())
+	//err = d.Run(a)
+	//if err != nil {
+	//	fmt.Println(err)
+	//	return err
+	//}
 	d.SaveAppToJson(d.GetAppAsJSON(a))
 	return nil
 }

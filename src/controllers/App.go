@@ -8,44 +8,47 @@ import (
 )
 
 type App struct {
-	id       string
-	repo     string
-	name     string
-	root     string
-	port     int
-	hostname string
-	deployed time.Time
-	lastRun  time.Time
-	uptime   time.Time
-	runner   string
-	pid      int
-	process  *os.Process
+	id          string
+	repo        string
+	name        string
+	root        string
+	port        int
+	hostname    string
+	deployed    time.Time
+	lastUpdated time.Time
+	lastRun     time.Time
+	uptime      time.Time
+	runner      string
+	pid         int
+	process     *os.Process
 }
 type AppJSON struct {
-	Id       string    `json:"id"`
-	Repo     string    `json:"repo"`
-	Name     string    `json:"name"`
-	Root     string    `json:"root"`
-	Port     int       `json:"port"`
-	Hostname string    `json:"hostname"`
-	Deployed time.Time `json:"deployed"`
-	LastRun  time.Time `json:"last_run"`
-	Uptime   time.Time `json:"uptime"`
-	Runner   string    `json:"runner"`
+	Id          string    `json:"id"`
+	Repo        string    `json:"repo"`
+	Name        string    `json:"name"`
+	Root        string    `json:"root"`
+	Port        int       `json:"port"`
+	Hostname    string    `json:"hostname"`
+	Deployed    time.Time `json:"deployed"`
+	LastUpdated time.Time `json:"last_updated"`
+	LastRun     time.Time `json:"last_run"`
+	Uptime      time.Time `json:"uptime"`
+	Runner      string    `json:"runner"`
 }
 
 func (a *App) GetJSON() ([]byte, error) {
 	return json.Marshal(AppJSON{
-		Id:       a.id,
-		Repo:     a.repo,
-		Name:     a.name,
-		Root:     a.root,
-		Port:     a.port,
-		Hostname: a.hostname,
-		Deployed: a.deployed,
-		LastRun:  a.lastRun,
-		Uptime:   a.uptime,
-		Runner:   a.runner,
+		Id:          a.id,
+		Repo:        a.repo,
+		Name:        a.name,
+		Root:        a.root,
+		Port:        a.port,
+		Hostname:    a.hostname,
+		Deployed:    a.deployed,
+		LastUpdated: a.lastUpdated,
+		LastRun:     a.lastRun,
+		Uptime:      a.uptime,
+		Runner:      a.runner,
 	})
 }
 
@@ -58,16 +61,17 @@ func NewApp(repo string, name string, runner string) *App {
 }
 func NewAppFromJson(a *AppJSON) *App {
 	return &App{
-		id:       a.Id,
-		repo:     a.Repo,
-		name:     a.Name,
-		root:     a.Root,
-		port:     a.Port,
-		hostname: a.Hostname,
-		deployed: a.Deployed,
-		lastRun:  a.LastRun,
-		uptime:   a.Uptime,
-		runner:   a.Runner,
+		id:          a.Id,
+		repo:        a.Repo,
+		name:        a.Name,
+		root:        a.Root,
+		port:        a.Port,
+		hostname:    a.Hostname,
+		deployed:    a.Deployed,
+		lastUpdated: a.LastUpdated,
+		lastRun:     a.LastRun,
+		uptime:      a.Uptime,
+		runner:      a.Runner,
 	}
 }
 func (a *App) GetId() string {
@@ -112,6 +116,12 @@ func (a *App) GetDeployed() time.Time {
 func (a *App) SetDeployed(t time.Time) {
 	a.deployed = t
 }
+func (a *App) GetLastUpdated() time.Time {
+	return a.lastUpdated
+}
+func (a *App) SetLastUpdated(t time.Time) {
+	a.lastUpdated = t
+}
 func (a *App) GetLastRun() time.Time {
 	return a.lastRun
 }
@@ -144,29 +154,29 @@ func (a *App) SetRunner(r string) {
 }
 func (a *App) Print() {
 	fmt.Println("-running-")
-	fmt.Printf("id:      \t%s\n",a.id)
-	fmt.Printf("repo:    \t%s\n",a.repo)
-	fmt.Printf("name:    \t%s\n",a.name)
-	fmt.Printf("root:    \t%s\n",a.root)
-	fmt.Printf("port:    \t%d\n",a.port)
+	fmt.Printf("id:      \t%s\n", a.id)
+	fmt.Printf("repo:    \t%s\n", a.repo)
+	fmt.Printf("name:    \t%s\n", a.name)
+	fmt.Printf("root:    \t%s\n", a.root)
+	fmt.Printf("port:    \t%d\n", a.port)
 	//fmt.Printf("hostname:\t%s\n",a.hostname)
 	//fmt.Printf("deployed:\t%s\n",a.deployed)
 	//fmt.Printf("lastRun: \t%s\n",a.lastRun)
 	//fmt.Printf("uptime:  \t%s\n",a.uptime)
-	fmt.Printf("runner:  \t%s\n",a.runner)
-	fmt.Printf("pid:     \t%d\n",a.pid)
+	fmt.Printf("runner:  \t%s\n", a.runner)
+	fmt.Printf("pid:     \t%d\n", a.pid)
 }
 func (a *AppJSON) Print() {
 	fmt.Println("-deployed-")
-	fmt.Printf("id:      \t%s\n",a.Id)
-	fmt.Printf("repo:    \t%s\n",a.Repo)
-	fmt.Printf("name:    \t%s\n",a.Name)
-	fmt.Printf("root:    \t%s\n",a.Root)
-	fmt.Printf("port:    \t%d\n",a.Port)
+	fmt.Printf("id:      \t%s\n", a.Id)
+	fmt.Printf("repo:    \t%s\n", a.Repo)
+	fmt.Printf("name:    \t%s\n", a.Name)
+	fmt.Printf("root:    \t%s\n", a.Root)
+	fmt.Printf("port:    \t%d\n", a.Port)
 	//fmt.Printf("hostname:\t%s\n",a.Hostname)
 	//fmt.Printf("deployed:\t%s\n",a.Deployed)
 	//fmt.Printf("lastRun: \t%s\n",a.LastRun)
 	//fmt.Printf("uptime:  \t%s\n",a.Uptime)
-	fmt.Printf("runner:  \t%s\n",a.Runner)
+	fmt.Printf("runner:  \t%s\n", a.Runner)
 	//fmt.Printf("pid:     \t%d\n",a.Pid)
 }
