@@ -5,10 +5,10 @@ export interface App {
 	root: string;
 	port: number;
 	hostname: string;
-	deployed: Date;
-	last_updated: Date;
-	last_run: Date;
-	uptime: Date;
+	deployed: string;
+	last_updated: string;
+	last_run: string;
+	uptime: number;
 	runner: string;
 	pid?: number;
 }
@@ -16,6 +16,12 @@ export interface App {
 export interface FindResponse {
 	running: App[];
 	deployed: App[];
+}
+function dateTemplate(dateString: string): string {
+	console.log(dateString);
+	const date = new Date(dateString);
+	return date.toDateString();
+	// return ``;
 }
 
 function appTemplate(app: App, running: boolean): string {
@@ -56,7 +62,7 @@ function appTemplate(app: App, running: boolean): string {
                             <span>Deployed:</span><span>${app.deployed}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
-                            <span>LastUpdated:</span><span>${app.last_updated}</span>
+                            <span>LastUpdated:</span><span>${dateTemplate(app.last_updated)}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
                             <span>LastRun:</span><span>${app.last_run}</span>
