@@ -1,5 +1,4 @@
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 // type AppJSON struct {
 // 	Id          string    `json:"id"`
 // 	Repo        string    `json:"repo"`

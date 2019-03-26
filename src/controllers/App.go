@@ -17,7 +17,7 @@ type App struct {
 	deployed    time.Time
 	lastUpdated time.Time
 	lastRun     time.Time
-	uptime      time.Time
+	uptime      string
 	runner      string
 	pid         int
 	process     *os.Process
@@ -32,8 +32,9 @@ type AppJSON struct {
 	Deployed    time.Time `json:"deployed"`
 	LastUpdated time.Time `json:"last_updated"`
 	LastRun     time.Time `json:"last_run"`
-	Uptime      time.Time `json:"uptime"`
+	Uptime      string    `json:"uptime"`
 	Runner      string    `json:"runner"`
+	Pid         int       `json:"pid"`
 }
 
 func (a *App) GetJSON() ([]byte, error) {
@@ -128,10 +129,10 @@ func (a *App) GetLastRun() time.Time {
 func (a *App) SetLastRun(t time.Time) {
 	a.lastRun = t
 }
-func (a *App) GetUptime() time.Time {
+func (a *App) GetUptime() string {
 	return a.uptime
 }
-func (a *App) SetUptime(t time.Time) {
+func (a *App) SetUptime(t string) {
 	a.uptime = t
 }
 func (a *App) GetPid() int {

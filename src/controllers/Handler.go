@@ -18,7 +18,7 @@ import (
 
 type Handler struct {
 	config                    *config.Config
-	deployer                  Deployer
+	deployer                  *Deployer
 	statusInternalServerError []byte
 	statusOK                  []byte
 	statusUnauthorized        []byte
@@ -31,7 +31,7 @@ type DeployRequest struct {
 	Repo  string `json:"repo"`
 }
 type FindResponse struct {
-	Running  []AppJSON  `json:"running"`
+	Running  *[]AppJSON  `json:"running"`
 	Deployed *[]AppJSON `json:"deployed"`
 }
 type ErrorResponse struct {
@@ -55,11 +55,11 @@ func (h *Handler) GetConfig() *config.Config {
 	return h.config
 }
 func (h *Handler) SetDeployer(d *Deployer) {
-	h.deployer = *d
+	h.deployer = d
 }
 
 func (h *Handler) GetDeployer() *Deployer {
-	return &h.deployer
+	return h.deployer
 }
 
 func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
@@ -228,7 +228,7 @@ func (h *Handler) HandleFind(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodGet {
 				apps := h.GetDeployer().GetAppsAsJSON()
 				appD := h.GetDeployer().GetDeployedApps()
-				jsonResponse, _ := json.Marshal(&FindResponse{Running: apps, Deployed: &appD})
+				jsonResponse, _ := json.Marshal(&FindResponse{Running: &apps, Deployed: &appD})
 				length, _ := w.Write(jsonResponse)
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			} else {
@@ -412,7 +412,7 @@ func (h *Handler) verifyCredentials(user string, pass string) bool {
 	configUser := h.GetConfig().GetUser()
 	configPassHash := utils.Hash(h.GetConfig().GetPass())
 	passHash := utils.Hash(pass)
-	return configPassHash == passHash && configUser == user
+	return configPassHash == passHash && configUser == strings.ToLower(user)
 }
 func (h *Handler) verifyToken(tokenString string) bool {
 	if _, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {

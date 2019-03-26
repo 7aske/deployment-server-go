@@ -80,15 +80,15 @@ func (d *Deployer) GetAppAsJSON(a *App) AppJSON {
 		LastRun:     a.lastRun,
 		Uptime:      a.uptime,
 		Runner:      a.runner,
+		Pid:         a.pid,
 	}
 }
 
 // output current running apps as JSON array
 func (d *Deployer) GetAppsAsJSON() []AppJSON {
-	apps := d.GetApps()
 	var arr []AppJSON
-	for _, a := range *apps {
-		arr = append(arr, AppJSON{
+	for _, a := range d.apps {
+		app := AppJSON{
 			Id:          a.id,
 			Repo:        a.repo,
 			Name:        a.name,
@@ -100,7 +100,10 @@ func (d *Deployer) GetAppsAsJSON() []AppJSON {
 			LastRun:     a.lastRun,
 			Uptime:      a.uptime,
 			Runner:      a.runner,
-		})
+			Pid:         a.pid,
+		}
+		app.Uptime = time.Now().Sub(a.lastRun).String()
+		arr = append(arr, app)
 	}
 	return arr
 }
