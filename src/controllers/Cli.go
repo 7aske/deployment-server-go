@@ -88,7 +88,7 @@ func (c *Cli) Run(query string) {
 }
 func (c *Cli) Kill(query string) {
 	if app, ok := c.deployer.GetApp(query); ok {
-		c.deployer.Kill(app)
+		_ = c.deployer.Kill(app)
 		fmt.Println("killed app with pid " + strconv.Itoa(app.GetPid()))
 	} else {
 		fmt.Println("not found")
@@ -97,7 +97,7 @@ func (c *Cli) Kill(query string) {
 func (c *Cli) Remove(query string) {
 	if appJson, ok := c.deployer.GetAppD(query); ok {
 		if app, ok := c.deployer.GetApp(appJson.Id); ok {
-			c.deployer.Kill(app)
+			_ = c.deployer.Kill(app)
 		}
 		c.deployer.Remove(appJson)
 		fmt.Println("removed app with id of " + appJson.Id)

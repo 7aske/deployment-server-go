@@ -156,10 +156,18 @@ func (d *Deployer) Deploy(repo string, runner string) (*App, error) {
 
 }
 func (d *Deployer) Update(a *App) error {
+	if d.IsAppRunning(a) {
+		_  = d.Kill(a)
+	}
 	git := exec.Command("git", "-C", a.GetRoot(), "pull")
 	git.Stdout = os.Stdout
 	git.Stderr = os.Stderr
 	err := git.Run()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	err = d.Run(a)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -210,12 +218,14 @@ func (d *Deployer) Run(a *App) error {
 	}
 
 }
-func (d *Deployer) Kill(app *App) {
+func (d *Deployer) Kill(app *App) error {
 	err := app.GetProcess().Kill()
 	if err != nil {
 		fmt.Println(err)
+		return err
 	}
 	d.RemoveApp(app)
+	return nil
 }
 func (d *Deployer) Remove(app *AppJSON) {
 	a := NewAppFromJson(app)
@@ -358,7 +368,17 @@ func (d *Deployer) initAppsJson() {
 			fmt.Println("json init - " + err.Error())
 		}
 	} else {
-		// TODO: sync folders and apps.json
+		folders, _ := ioutil.ReadDir(d.GetConfig().GetAppsRoot())
+		//for _, f := range folders {
+		//	fmt.Println(f.Name())
+		//}
+		appsD := d.GetDeployedApps()
+		for _, app := range appsD {
+			if !utils.ContainsFile(app.Name, &folders) {
+				fmt.Println(app.Name)
+				d.RemoveAppFromJson(app)
+			}
+		}
 	}
 }
 func (d *Deployer) generatePort() int {

@@ -161,12 +161,13 @@ func (h *Handler) HandleFind(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", strconv.Itoa(length))
 	}
 }
+// TODO: kill error handling
 func (h *Handler) HandleKill(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		body := utils.GetJsonMap(r.Body)
 		name := body["app"]
 		if app, ok := h.GetDeployer().GetApp(name); ok {
-			h.GetDeployer().Kill(app)
+			_ = h.GetDeployer().Kill(app)
 			jsonResponse, _ := json.Marshal(SuccessResponse{Message: "killed", App:h.GetDeployer().GetAppAsJSON(app)})
 			length, _ := w.Write(jsonResponse)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -188,7 +189,7 @@ func (h *Handler) HandleRemove(w http.ResponseWriter, r *http.Request) {
 		name := body["app"]
 		if appJson, ok := h.GetDeployer().GetAppD(name); ok {
 			if app, ok := h.GetDeployer().GetApp(appJson.Id); ok {
-				h.GetDeployer().Kill(app)
+				_ = h.GetDeployer().Kill(app)
 			}
 			h.GetDeployer().Remove(appJson)
 			jsonResponse, _ := json.Marshal(SuccessResponse{Message: "removed", App:*appJson})
