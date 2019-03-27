@@ -164,6 +164,9 @@ function runnerIcon(runner) {
         case "web":
             r = "html5";
             break;
+        case "python":
+            r = "python";
+            break;
     }
     return "<i class=\"fab fa-" + r + " fa-2x\"></i>";
 }

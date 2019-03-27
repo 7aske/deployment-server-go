@@ -223,6 +223,8 @@ func (d *Deployer) Run(a *App) error {
 		return d.runNode(a)
 	case "web":
 		return d.runWeb(a)
+	case "python":
+		return d.runPython(a)
 	default:
 		return errors.New("unsupported runner")
 	}
@@ -326,7 +328,29 @@ func (d *Deployer) runWeb(a *App) error {
 	fmt.Printf("starting server with pid - %d on port %d\n", a.GetPid(), a.GetPort())
 	return nil
 }
-func (d *Deployer) runPython() {
+func (d *Deployer) runPython(a *App) error {
+	python := exec.Command("python3", "__main__.py")
+	python.Dir = a.GetRoot()
+	port := a.GetPort()
+	if port == 0 {
+		a.SetPort(d.generatePort())
+		port = a.GetPort()
+	}
+	python.Env = append(python.Env, fmt.Sprintf("PORT=%d", port))
+	python.Stdout = os.Stdout
+	python.Stderr = os.Stderr
+	err := python.Start()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	a.SetLastRun(time.Now())
+	a.SetPid(python.Process.Pid)
+	a.SetProcess(python.Process)
+	d.AddApp(a)
+	d.SaveAppToJson(d.GetAppAsJSON(a))
+	fmt.Printf("starting server with pid - %d on port %d\n", a.GetPid(), a.GetPort())
+	return nil
 }
 func (d *Deployer) runPythonFlask() {
 }

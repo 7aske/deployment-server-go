@@ -228,6 +228,9 @@ function runnerIcon(runner: string): string {
 		case "web":
 			r = "html5";
 			break;
+		case "python":
+			r = "python";
+			break;
 	}
 	return `<i class="fab fa-${r} fa-2x"></i>`;
 }
@@ -341,7 +344,7 @@ function doAction(event: Event) {
 		})
 		.catch(err => {
 			store.setState("loading", false);
-			console.log(err)
+			console.log(err);
 		});
 }
 
