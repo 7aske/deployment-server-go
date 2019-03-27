@@ -12,6 +12,7 @@ import (
 
 type Config struct {
 	port        int
+	routerPort  int
 	appsPort    int
 	appsRoot    string
 	secret      []byte
@@ -29,8 +30,8 @@ func (c *Config) Write() {
 		log.Fatal("unable to open ", cFilePath)
 	}
 	cFile.Section("server").Key("port").SetValue(strconv.Itoa(c.port))
+	cFile.Section("server").Key("router").SetValue(strconv.Itoa(c.port))
 	cFile.Section("server").Key("appsPort").SetValue(strconv.Itoa(c.appsPort))
-
 
 	cFile.Section("auth").Key("secret").SetValue(string(c.secret))
 	cFile.Section("auth").Key("user").SetValue(string(c.user))
@@ -54,17 +55,22 @@ func (c *Config) Read() {
 	}
 	port, err := strconv.Atoi(cFile.Section("server").Key("port").Value())
 	if err != nil {
-		c.port = 8080
+		c.port = 3000
 	} else {
 		c.port = port
 	}
 	appsPort, err := strconv.Atoi(cFile.Section("server").Key("appsPort").Value())
 	if err != nil {
-		c.appsPort = 8081
+		c.appsPort = 3001
 	} else {
 		c.appsPort = appsPort
 	}
-
+	routerPort, err := strconv.Atoi(cFile.Section("server").Key("router").Value())
+	if err != nil {
+		c.routerPort = 8080
+	} else {
+		c.routerPort = routerPort
+	}
 	secret := []byte(cFile.Section("auth").Key("secret").Value())
 	pass := cFile.Section("auth").Key("pass").Value()
 	user := cFile.Section("auth").Key("user").Value()
@@ -77,7 +83,7 @@ func (c *Config) Read() {
 	if pth == "" {
 		c.appsRoot = path.Join(cwd, "apps")
 	} else {
-		if filepath.IsAbs(pth){
+		if filepath.IsAbs(pth) {
 			c.appsRoot = pth
 
 		} else {
@@ -88,7 +94,7 @@ func (c *Config) Read() {
 	if server == "" {
 		c.basicServer = path.Join(cwd, "server", "server.js")
 	} else {
-		if filepath.IsAbs(server){
+		if filepath.IsAbs(server) {
 			c.basicServer = server
 
 		} else {
@@ -108,6 +114,12 @@ func (c *Config) SetPort(port int) {
 }
 func (c *Config) GetPort() int {
 	return c.port
+}
+func (c *Config) SetRouterPort(port int) {
+	c.port = port
+}
+func (c *Config) GetRouterPort() int {
+	return c.routerPort
 }
 func (c *Config) SetAppsPort(port int) {
 	c.appsPort = port

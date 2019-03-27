@@ -440,9 +440,10 @@ func (h *Handler) verifyToken(tokenString string) bool {
 	return true
 }
 
-func NewHandler(cfg *config.Config) Handler {
+func NewHandler(cfg *config.Config, d *Deployer) Handler {
 	h := Handler{}
 	h.config = cfg
+	h.deployer = d
 	h.statusInternalServerError = []byte("( ͠° ͟ʖ ͡°) 500 INTERNAL SERVER ERROR")
 	h.statusNotFound = []byte("( ͡° ʖ̯ ͡°) 404 NOT FOUND")
 	h.statusUnauthorized = []byte("( ͠° ͟ʖ ͡°) 401 UNAUTHORIZED")

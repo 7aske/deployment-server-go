@@ -11,27 +11,41 @@ import (
 
 func NewServer() {
 	cfg := config.LoadConfig()
-	fmt.Println(fmt.Sprintf("port: %d", cfg.GetPort()))
-	handler := NewHandler(cfg)
 	deployer := NewDeployer(cfg)
-	handler.SetDeployer(&deployer)
+	handler := NewHandler(cfg, &deployer)
 	cli := NewCli(&deployer)
-	http.HandleFunc("/auth", handler.HandleAuth)
-	http.HandleFunc("/api/deploy", handler.HandleDeploy)
-	http.HandleFunc("/api/update", handler.HandleUpdate)
-	http.HandleFunc("/api/run", handler.HandleRun)
-	http.HandleFunc("/api/find", handler.HandleFind)
-	http.HandleFunc("/api/kill", handler.HandleKill)
-	http.HandleFunc("/api/remove", handler.HandleRemove)
-	http.HandleFunc("/api/settings", handler.HandleSettings)
-	http.HandleFunc("/", handler.HandleRoot)
-	fmt.Printf("starting http server on port %d\n", cfg.GetPort())
+	routerHandler := NewRouterHandler(&deployer, cfg)
+	devMux := http.NewServeMux()
+	devMux.HandleFunc("/auth", handler.HandleAuth)
+	devMux.HandleFunc("/api/deploy", func(writer http.ResponseWriter, request *http.Request) {
+		handler.HandleDeploy(writer, request)
+		routerHandler.UpdateHosts()
+		fmt.Println(*routerHandler.GetHosts())
+	})
+	devMux.HandleFunc("/api/update", handler.HandleUpdate)
+	devMux.HandleFunc("/api/run", handler.HandleRun)
+	devMux.HandleFunc("/api/find", handler.HandleFind)
+	devMux.HandleFunc("/api/kill", handler.HandleKill)
+	devMux.HandleFunc("/api/remove", handler.HandleRemove)
+	devMux.HandleFunc("/api/settings", handler.HandleSettings)
+	devMux.HandleFunc("/", handler.HandleRoot)
+	routerMux := http.NewServeMux()
+	routerMux.HandleFunc("/", routerHandler.HandleRoot)
 	go func() {
-		err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.GetPort()), nil)
+		fmt.Printf("starting dev server on port %d\n", cfg.GetPort())
+		err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.GetPort()), devMux)
 		if err != nil {
 			panic(fmt.Sprintf("error starting server on port %d", cfg.GetPort()))
 		}
 	}()
+	go func() {
+		fmt.Printf("starting router server on port %d\n", cfg.GetRouterPort())
+		err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.GetRouterPort()), routerMux)
+		if err != nil {
+			panic(fmt.Sprintf("error starting server on port %d", cfg.GetRouterPort()))
+		}
+	}()
+
 	fmt.Println("type \"help\" from help...")
 	reader := bufio.NewReader(os.Stdin)
 	for {
