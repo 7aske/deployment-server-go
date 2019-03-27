@@ -37,7 +37,7 @@ func NewRouterHandler(d *Deployer, c *config.Config) *RouterHandler {
 }
 
 func (rh *RouterHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
-	host, _, _ := net.SplitHostPort(r.URL.Host)
+	host, _, _ := net.SplitHostPort(r.Host)
 	url := host + ":" + rh.hosts[host]
 	fmt.Println(url)
 	if url == host+":" {
