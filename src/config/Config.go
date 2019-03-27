@@ -68,13 +68,14 @@ func (c *Config) Read() {
 	} else {
 		c.appsPort = appsPort
 	}
-	c.hostname = cFile.Section("dev").Key("hostname").Value()
+	hostname := cFile.Section("dev").Key("hostname").Value()
 	routerPort, err := strconv.Atoi(cFile.Section("router").Key("port").Value())
 	if err != nil {
 		c.routerPort = 8080
 	} else {
 		c.routerPort = routerPort
 	}
+	c.hostname = hostname
 	secret := []byte(cFile.Section("auth").Key("secret").Value())
 	pass := cFile.Section("auth").Key("pass").Value()
 	user := cFile.Section("auth").Key("user").Value()
