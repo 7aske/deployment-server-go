@@ -2,11 +2,13 @@ package controllers
 
 import (
 	"../config"
+	"../utils"
 	"bufio"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 func NewServer() {
@@ -45,14 +47,19 @@ func NewServer() {
 			panic(fmt.Sprintf("error starting server on port %d", cfg.GetRouterPort()))
 		}
 	}()
+	if utils.Contains("-i", &os.Args) != -1 {
+		fmt.Println("type \"help\" from help...")
+		reader := bufio.NewReader(os.Stdin)
+		for {
+			line, _, _ := reader.ReadLine()
+			args := strings.Split(string(line), " ", )
+			cli.ParseCommand(args...)
+			cli.lastCommand = line
+		}
 
-	fmt.Println("type \"help\" from help...")
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		line, _, _ := reader.ReadLine()
-		args := strings.Split(string(line), " ", )
-		cli.ParseCommand(args...)
-		cli.lastCommand = line
+	} else {
+		for {
+			time.Sleep(time.Hour)
+		}
 	}
-
 }
