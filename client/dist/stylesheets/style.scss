@@ -10,10 +10,32 @@ nav {
 #appContainer {
 	.card {
 		.card-header {
+			h3, h6 {
+				cursor: pointer;
+			}
+
 			span {
 				//font-size: 18px;
 				font-weight: bold;
 			}
+		}
+
+		.card-body {
+			ul {
+				li {
+					span:nth-of-type(1) {
+						font-weight: 700;
+					}
+
+					span:nth-of-type(2) {
+						margin-right: 10px;
+					}
+				}
+			}
+		}
+
+		.card-header:hover {
+			color: red;
 		}
 
 		.card-footer {
@@ -39,6 +61,16 @@ nav {
 			width: 10vw;
 		}
 	}
+
+	.modal-dialog {
+		.modal-content {
+			.modal-footer {
+				button {
+					width: 75px;
+				}
+			}
+		}
+	}
 }
 
 @media screen and (max-width: 540px) {
@@ -48,5 +80,20 @@ nav {
 				width: 25vw;
 			}
 		}
+
 	}
+	#appContainer {
+		.card {
+			.card-footer {
+				button {
+					i, svg, path {
+						font-size: 18px;
+					}
+
+					//width: 50px;
+				}
+			}
+		}
+	}
+
 }

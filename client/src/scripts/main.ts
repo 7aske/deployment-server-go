@@ -18,28 +18,172 @@ type ButtonActions = "run" | "kill" | "update" | "remove";
 // 	running: App[];
 // 	deployed: App[];
 // }
+export type DataStoreTypes = boolean;
+export type DataStoreKeys =
+	"isModalUp" |
+	"loading";
+
+interface DataStore {
+	readonly state: State;
+	readonly _state: _State;
+
+	setState(state: DataStoreKeys, value: DataStoreTypes): DataStoreTypes;
+
+	getState(state: DataStoreKeys): DataStoreTypes;
+
+	registerState(state: DataStoreKeys, value: DataStoreTypes): void;
+
+	subscribe(state: DataStoreKeys, actions: Function[]): void;
+
+	getStateObject?(): _State;
+}
+
+interface _State {
+	[key: string]: _StateProp;
+}
+
+interface State {
+	[key: string]: DataStoreTypes;
+}
+
+interface _StateProp {
+	value: DataStoreTypes;
+	actions: Function[];
+}
+
+class Store implements DataStore {
+	public readonly _state: _State = {};
+	public readonly state: State = {};
+
+	constructor(initialState: State) {
+		Object.keys(initialState).forEach(key => {
+			this._state[key] = {value: initialState[key], actions: []};
+		});
+		this.state = initialState;
+	}
+
+	public setState(name: DataStoreKeys, state: DataStoreTypes): DataStoreTypes {
+		if (Object.keys(this._state).indexOf(name) == -1) {
+			throw new Error("State must be registered first");
+		} else {
+			this.set(name, state);
+			if (this._state[name].actions) {
+				this._state[name].actions.forEach(action => {
+					action();
+				});
+			}
+		}
+		return this.state[name];
+	}
+
+	public registerState(name: DataStoreKeys, initialState: DataStoreTypes) {
+		if (Object.keys(this.state).indexOf(name) != -1) {
+			throw new Error("State already exists");
+		} else {
+			this.set(name, initialState);
+		}
+	}
+
+	public getState(name: DataStoreKeys): any {
+		if (Object.keys(this.state).indexOf(name) == -1) {
+			throw new Error("State is not registered - '" + name + "'");
+		} else {
+			return this.state[name];
+		}
+	}
+
+	public subscribe(name: DataStoreKeys, actions: Function[]) {
+		if (Object.keys(this._state).indexOf(name) == -1) {
+			throw new Error("State is not registered");
+		} else {
+			this._state[name].actions = actions;
+		}
+	}
+
+	public getStateObject() {
+		return this._state;
+	}
+
+	private set(name: DataStoreKeys, state: DataStoreTypes) {
+		if (Object.keys(this.state).indexOf(name) == -1) {
+			this.state[name] = state;
+			this._state[name] = {value: state, actions: []};
+		} else {
+			this._state[name].value = state;
+			this.state[name] = state;
+		}
+	}
+}
+
+const initialState: State = {
+	isModalUp: false,
+	loading: false,
+};
+
+const store = new Store(initialState);
+store.subscribe("isModalUp", [updateModal]);
+store.subscribe("loading", [toggleLoader]);
+
 const baseUrl = new URL(window.location.protocol + "//" + window.location.hostname + ":" + window.location.port);
 const token = document.cookie.split("; ").filter(e => e.startsWith("Authorization"))[0].split("Bearer ")[1].replace("\"", " ");
 // @ts-ignore
 let tokenData = jwt_decode(token);
+const appContainer = document.querySelector("#appContainer");
+const modal = document.querySelector("#modalDialog");
+const modalForm = document.querySelector("#modalDialog form") as HTMLFormElement;
+const modalConfirm = document.querySelector("#btnModalConfirm");
+modalConfirm.addEventListener("click", e => doForm(e));
+const modalCancel = document.querySelector("#btnModalCancel");
+const searchInp = document.querySelector("#searchInp") as HTMLInputElement;
+searchInp.addEventListener("keydown", () => {
+	updateApps(searchInp.value);
+});
+const searchBtn = document.querySelector("#searchBtn");
+searchBtn.addEventListener("click", e => {
+	updateApps(searchInp.value);
+});
+const deployBtn = document.querySelector("#deployBtn");
+deployBtn.addEventListener("click", e => {
+});
+$("#modalDialog")
+	.on("shown.bs.modal", () => store.setState("isModalUp", true))
+	.on("hidden.bs.modal", () => store.setState("isModalUp", false));
 
 function init() {
-	let url = baseUrl;
-	url.pathname = "/api/find";
-	fetch(url.href).then(j => {
-		j.json().then(res => {
-			console.log(res);
-			const appsD: App[] = res.deployed != null ? res.deployed : [];
-			const apps: App[] = res.running != null ? res.running : [];
-			appsD.forEach(a => {
-				if (apps.filter(app => a.id == app.id).length == 1) {
-					document.querySelector("#appContainer").innerHTML += appTemplate(apps.find(app => a.id == app.id), true);
-				} else {
-					document.querySelector("#appContainer").innerHTML += appTemplate(a, false);
-				}
-			});
-		}).catch(err => console.log(err));
-	}).catch(err => console.log(err));
+	updateApps();
+}
+
+window.addEventListener("keypress", e => {
+	switch (e.key) {
+		case "Enter":
+			if (store.getState("isModalUp")) {
+				const ev = document.createEvent("Events");
+				ev.initEvent("click", true, false);
+				modalConfirm.dispatchEvent(ev);
+			} else if (searchInp == document.activeElement) {
+				updateApps(searchInp.value);
+			}
+			break;
+
+	}
+});
+
+function toggleLoader() {
+	if (store.getState("loading")) {
+		document.querySelector(".loader").classList.remove("d-none");
+	} else {
+		document.querySelector(".loader").classList.add("d-none");
+	}
+}
+
+function updateModal() {
+	console.log(store.getState("isModalUp"));
+}
+
+function getOpenExternalButton(hostname: string, port: number) {
+	const link = location.hostname + ":" + port;
+	return `<button class="btn btn-secondary" onclick="window.open('${link}', '_blank')"><i class="fas fa-external-link-alt fa-2x"></i><br>Open</button>`;
+
 }
 
 function getButton(id: string, action: ButtonActions): string {
@@ -92,10 +236,10 @@ function appTemplate(app: App, running: boolean): string {
 	return ` <div class="card">
             <div class="card-header" id="heading${app.id}">
 				<span class="float-right ${running ? "online text-success" : "offline text-danger"}">${running ? "Online <i class=\"fas fa-globe\"></i>" : "Offline <i class=\"fas fa-times-circle\"></i>"}</span>
-                <h3 class="mb-2" style="cursor: pointer;" data-toggle="collapse" data-target="#collapse${app.id}" aria-expanded="false" aria-controls="collapse${app.id}">
+                <h3 class="mb-2" data-toggle="collapse" data-target="#collapse${app.id}" aria-expanded="false" aria-controls="collapse${app.id}">
 					${app.name}
                 </h3>
-                <h6 class="mb-0 text-muted">
+                <h6 class="mb-0 text-muted" data-toggle="collapse" data-target="#collapse${app.id}" aria-expanded="false" aria-controls="collapse${app.id}">
 					${app.repo}
 				</h6>
             </div>
@@ -142,7 +286,8 @@ function appTemplate(app: App, running: boolean): string {
                         </li>
                     </ul>
                 </div>
-                <div class="card-footer text-right">
+                <div class="card-footer text-right d-flex justify-content-around">
+                	${running ? getOpenExternalButton("", app.port) : ""}
                 	${running ? getButton(app.id, "kill") : getButton(app.id, "run")}
     				${getButton(app.id, "update")}
     				${getButton(app.id, "remove")}
@@ -151,13 +296,35 @@ function appTemplate(app: App, running: boolean): string {
         </div>`;
 }
 
+function updateApps(query: string = "") {
+	const url = baseUrl;
+	url.pathname = "/api/find";
+	url.search = "?app=" + searchInp.value;
+	fetch(url.href).then(j => {
+		j.json().then(res => {
+			console.log(res);
+			const appsD: App[] = res.deployed != null ? res.deployed : [];
+			const apps: App[] = res.running != null ? res.running : [];
+			appContainer.innerHTML = "";
+			appsD.forEach(a => {
+				if (apps.filter(app => a.id == app.id).length == 1) {
+					appContainer.innerHTML += appTemplate(apps.find(app => a.id == app.id), true);
+				} else {
+					appContainer.innerHTML += appTemplate(a, false);
+				}
+			});
+		}).catch(err => console.log(err));
+	}).catch(err => console.log(err));
+}
+
 function doAction(event: Event) {
-	let url = baseUrl;
+	const url = baseUrl;
 	const btn = event.target as HTMLButtonElement;
 	const action = btn.attributes.getNamedItem("data-action").value;
 	const id = btn.attributes.getNamedItem("data-id").value;
-	let data = {app: id};
+	const data = {app: id};
 	url.pathname = `/api/${action}`;
+	store.setState("loading", true);
 	fetch(url.href, {
 		method: "POST", // *GET, POST, PUT, DELETE, etc.
 		mode: "cors", // no-cors, cors, *same-origin
@@ -166,8 +333,55 @@ function doAction(event: Event) {
 		},
 		body: JSON.stringify(data), // body data type must match "Content-Type" header
 	})
-		.then(res => res.status == 200 ? location.reload() : null)
-		.catch(err => console.log(err));
+		.then(res => {
+			if (res.status == 200) {
+				updateApps();
+			}
+			store.setState("loading", false);
+		})
+		.catch(err => {
+			store.setState("loading", false);
+			console.log(err)
+		});
+}
+
+function doForm(event: Event) {
+	event.preventDefault();
+	const url = baseUrl;
+	const repo = document.querySelector("#repo") as HTMLInputElement;
+	const runner = document.querySelector("#runner") as HTMLInputElement;
+	const hostname = document.querySelector("#hostname") as HTMLInputElement;
+	const port = document.querySelector("#port") as HTMLInputElement;
+	const data = {
+		hostname: hostname.value,
+		runner: runner.value,
+		repo: repo.value.startsWith("https://") ? repo.value : "https://" + repo.value,
+		port: port.value,
+	};
+	url.pathname = "/api/deploy";
+	store.setState("loading", true);
+	// @ts-ignore
+	$("#modalDialog").modal("hide");
+	fetch(url.href, {
+		method: "POST", // *GET, POST, PUT, DELETE, etc.
+		mode: "cors", // no-cors, cors, *same-origin
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify(data), // body data type must match "Content-Type" header
+	})
+		.then(res => {
+			if (res.status == 200) {
+				// @ts-ignore
+				$("#modalDialog").modal("hide");
+				updateApps();
+			}
+			store.setState("loading", false);
+		})
+		.catch(err => {
+			console.log(err);
+			store.setState("loading", false);
+		});
 }
 
 init();

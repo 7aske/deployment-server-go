@@ -21,10 +21,11 @@ func (c *Cli) ParseCommand(args ...string) {
 		case "deploy":
 			if len(args) < 3 {
 				fmt.Println("deploy <repo> <runner>")
-			} else if len(args) == 4 {
-				c.Deploy(fmt.Sprintf("https://github.com/%s/%s", args[1], args[2]), args[3])
+			} else if len(args) == 6 {
+				port, _ := strconv.Atoi(args[5])
+				c.Deploy(fmt.Sprintf("https://github.com/%s/%s", args[1], args[2]), args[3], args[4], port)
 			} else {
-				c.Deploy(args[1], args[2])
+				c.Deploy(args[1], args[2], "", 0)
 			}
 		case "run":
 			if len(args) < 2 {
@@ -56,8 +57,8 @@ func (c *Cli) ParseCommand(args ...string) {
 
 	}
 }
-func (c *Cli) Deploy(repo string, runner string) {
-	app, err := c.deployer.Deploy(repo, runner)
+func (c *Cli) Deploy(repo string, runner string, hostname string, port int) {
+	app, err := c.deployer.Deploy(repo, runner, hostname, port)
 	if err != nil {
 		fmt.Println(err)
 		return

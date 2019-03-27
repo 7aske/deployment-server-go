@@ -136,10 +136,14 @@ func (d *Deployer) RemoveAppD(a *AppJSON) {
 	d.appsD = newApps
 }
 
-func (d *Deployer) Deploy(repo string, runner string) (*App, error) {
+func (d *Deployer) Deploy(repo string, runner string, hostname string, port int) (*App, error) {
 	name := utils.GetNameFromRepo(repo)
 	app := NewApp(repo, name, runner)
 	app.SetRoot(path.Join(d.GetConfig().GetAppsRoot(), app.GetName()))
+	if !d.isPortUsed(port) {
+		app.SetPort(port)
+	}
+	app.SetHostname(hostname)
 	//fmt.Println(app.GetRoot())
 	//fmt.Println(app.GetRunner())
 	if _, ok := d.GetAppD(repo); !ok {
@@ -230,6 +234,9 @@ func (d *Deployer) Kill(app *App) error {
 		fmt.Println(err)
 		return err
 	}
+	jApp := d.GetAppAsJSON(app)
+	jApp.Pid = 0
+	d.SaveAppToJson(jApp)
 	d.RemoveApp(app)
 	return nil
 }
@@ -395,6 +402,9 @@ func (d *Deployer) generatePort() int {
 	return port
 }
 func (d *Deployer) isPortUsed(port int) bool {
+	if port < 1024 {
+		return true
+	}
 	for _, a := range d.GetDeployedApps() {
 		if port == a.Port {
 			return true

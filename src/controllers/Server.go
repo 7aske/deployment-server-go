@@ -37,13 +37,8 @@ func NewServer() {
 	for {
 		line, _, _ := reader.ReadLine()
 		args := strings.Split(string(line), " ", )
-		//if args[0] != "!" {
 		cli.ParseCommand(args...)
 		cli.lastCommand = line
-		//} else {
-		//	fmt.Println("lc")
-		//	cli.PutLastCommand()
-		//}
 	}
 
 }

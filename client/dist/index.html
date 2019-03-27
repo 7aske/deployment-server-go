@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="../node_modules/bootstrap/dist/css/bootstrap.css">
     <link rel="stylesheet" href="./stylesheets/scrollbar.css">
     <link rel="stylesheet" href="./stylesheets/sidebar.css">
+    <link rel="stylesheet" href="./stylesheets/lds-hourglass.css">
     <link rel="stylesheet" href="./stylesheets/style.css">
     <title>Deployment Server</title>
 </head>
@@ -42,21 +43,10 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarCollapse">
                 <ul class="navbar-nav ml-auto mt-2 mt-lg-0">
-                    <li class="nav-item active">
-                        <a class="nav-link" href="#">Home</a>
-                    </li>
-<!--                    <li class="nav-item dropdown">-->
-<!--                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"-->
-<!--                           data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">-->
-<!--                            Dropdown-->
-<!--                        </a>-->
-<!--                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">-->
-<!--                            <a class="dropdown-item" href="#">Action</a>-->
-<!--                            <a class="dropdown-item" href="#">Another action</a>-->
-<!--                            <div class="dropdown-divider"></div>-->
-<!--                            <a class="dropdown-item" href="#">Something else here</a>-->
-<!--                        </div>-->
-<!--                    </li>-->
+                    <div class="form-inline my-2 my-lg-0">
+                        <input class="form-control mr-sm-2" type="search" placeholder="Search" id="searchInp" aria-label="Search">
+                        <button class="btn btn-outline-secondary my-2 my-sm-0" id="searchBtn" type="button">Search</button>
+                    </div>
                 </ul>
             </div>
         </nav>
@@ -94,20 +84,30 @@
                     </div>
                     <div class="input-group input-group-sm mb-3">
                         <div class="input-group-prepend">
-                            <span class="input-group-text">Repository</span>
+                            <span class="input-group-text">Hostname</span>
                         </div>
                         <input type="text" name="hostname" id="hostname" class="form-control" aria-label="Small">
+                    </div>
+                    <div class="input-group input-group-sm mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">Port</span>
+                        </div>
+                        <input type="text" name="port" id="port" class="form-control" aria-label="Small">
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-danger" data-dismiss="modal" id="btnModalCancel"><i
                         class="fas fa-times"></i></button>
-                <button type="button" class="btn btn-success" data-dismiss="modal" id="btnModalConfirm"><i
+                <button type="button" class="btn btn-success" id="btnModalConfirm"><i
                         class="fas fa-check"></i></button>
             </div>
+
         </div>
     </div>
+</div>
+<div class="loader d-none">
+    <div class="spinner"></div>
 </div>
 <script>const exports = {};</script>
 <script src="../node_modules/jquery/dist/jquery.js"></script>

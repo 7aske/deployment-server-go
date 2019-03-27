@@ -74,7 +74,14 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodPost {
 				jsonBody := utils.GetJsonMap(r.Body)
 				//name := utils.GetNameFromRepo(jsonBody["repo"])
-				app, err := h.GetDeployer().Deploy(jsonBody["repo"], jsonBody["runner"])
+				repo := jsonBody["repo"]
+				runner := jsonBody["runner"]
+				hostname := jsonBody["hostname"]
+				port, err :=  strconv.Atoi(jsonBody["port"])
+				if err != nil {
+					port = 0
+				}
+				app, err := h.GetDeployer().Deploy(repo, runner, hostname, port)
 				if err != nil {
 					fmt.Println(err)
 					w.WriteHeader(http.StatusForbidden)
@@ -226,9 +233,15 @@ func (h *Handler) HandleFind(w http.ResponseWriter, r *http.Request) {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
 		if h.verifyToken(token) {
 			if r.Method == http.MethodGet {
+				query := r.URL.Query().Get("app")
 				apps := h.GetDeployer().GetAppsAsJSON()
-				appD := h.GetDeployer().GetDeployedApps()
-				jsonResponse, _ := json.Marshal(&FindResponse{Running: &apps, Deployed: &appD})
+				appsD := h.GetDeployer().GetDeployedApps()
+				jsonResponse := []byte{}
+				if query == "" {
+					jsonResponse, _ = json.Marshal(&FindResponse{Running: &apps, Deployed: &appsD})
+				} else {
+					jsonResponse, _ = json.Marshal(&FindResponse{Running: queryApps(query, &apps), Deployed: queryApps(query, &appsD)})
+				}
 				length, _ := w.Write(jsonResponse)
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			} else {
@@ -436,4 +449,13 @@ func NewHandler(cfg *config.Config) Handler {
 	h.statusMethodNotAllowed = []byte("( ͠° ͟ʖ ͡°) 405 METHOD NOT ALLOWED")
 	h.statusOK = []byte("( ͡ᵔ ͜ʖ ͡ᵔ ) 200 OK")
 	return h
+}
+func queryApps(search string, apps *[]AppJSON) *[]AppJSON {
+	out := []AppJSON{}
+	for _, a := range *apps {
+		if strings.Contains(a.Name, strings.ToLower(search)) || strings.Contains(a.Id, search) {
+			out = append(out, a)
+		}
+	}
+	return &out
 }
