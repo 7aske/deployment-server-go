@@ -181,8 +181,13 @@ function updateModal() {
 }
 
 function getOpenExternalButton(hostname: string, port: number) {
-	const link = location.hostname + ":" + port;
-	return `<button class="btn btn-secondary" onclick="window.open('${link}', '_blank')"><i class="fas fa-external-link-alt fa-2x"></i><br>Open</button>`;
+	let url = window.location.protocol + "//" + hostname;
+	if (hostname == "") {
+		let sep = window.location.hostname.split(".")
+		sep.shift();
+		url = window.location.protocol + "//" + sep.join(".") + ":" + port;
+	}
+	return `<button class="btn btn-secondary" onclick="window.open('${url}', '_blank')"><i class="fas fa-external-link-alt fa-2x"></i><br>Open</button>`;
 
 }
 
@@ -290,7 +295,7 @@ function appTemplate(app: App, running: boolean): string {
                     </ul>
                 </div>
                 <div class="card-footer text-right d-flex justify-content-around">
-                	${running ? getOpenExternalButton("", app.port) : ""}
+                	${running ? getOpenExternalButton(app.hostname, app.port) : ""}
                 	${running ? getButton(app.id, "kill") : getButton(app.id, "run")}
     				${getButton(app.id, "update")}
     				${getButton(app.id, "remove")}
