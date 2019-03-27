@@ -37,16 +37,17 @@ func NewRouterHandler(d *Deployer, c *config.Config) *RouterHandler {
 }
 
 func (rh *RouterHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
-	// fmt.Println("r.Host " + r.Host)
-	// fmt.Println("r.URL.Host " + r.URL.Host)
-	// host, _, _ := net.SplitHostPort(r.Host)
 	protocol := "http://"
 	if r.URL.Scheme == "https" {
 		protocol = "https://"
 	}
 	host := r.Host
-	url := protocol + host + ":" + rh.hosts[host]
-	fmt.Println(url)
+	url := ""
+	if host == rh.config.GetHostname() {
+		url = protocol + host + ":" + strconv.Itoa(rh.config.GetPort())
+	} else {
+		url = protocol + host + ":" + rh.hosts[host]
+	}
 	if url == protocol + host + ":" {
 		w.WriteHeader(http.StatusNotFound)
 		length, _ := w.Write(rh.statusNotFound)

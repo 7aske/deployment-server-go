@@ -12,8 +12,9 @@ import (
 
 type Config struct {
 	port        int
-	routerPort  int
 	appsPort    int
+	hostname    string
+	routerPort  int
 	appsRoot    string
 	secret      []byte
 	pass        string
@@ -29,9 +30,11 @@ func (c *Config) Write() {
 	if err != nil {
 		log.Fatal("unable to open ", cFilePath)
 	}
-	cFile.Section("server").Key("port").SetValue(strconv.Itoa(c.port))
-	cFile.Section("server").Key("router").SetValue(strconv.Itoa(c.port))
-	cFile.Section("server").Key("appsPort").SetValue(strconv.Itoa(c.appsPort))
+	cFile.Section("dev").Key("port").SetValue(strconv.Itoa(c.port))
+	cFile.Section("dev").Key("appsPort").SetValue(strconv.Itoa(c.appsPort))
+	cFile.Section("dev").Key("hostname").SetValue(c.hostname)
+
+	cFile.Section("router").Key("port").SetValue(strconv.Itoa(c.routerPort))
 
 	cFile.Section("auth").Key("secret").SetValue(string(c.secret))
 	cFile.Section("auth").Key("user").SetValue(string(c.user))
@@ -53,19 +56,20 @@ func (c *Config) Read() {
 	if err != nil {
 		log.Fatal("unable to open ", cFilePath)
 	}
-	port, err := strconv.Atoi(cFile.Section("server").Key("port").Value())
+	port, err := strconv.Atoi(cFile.Section("dev").Key("port").Value())
 	if err != nil {
 		c.port = 3000
 	} else {
 		c.port = port
 	}
-	appsPort, err := strconv.Atoi(cFile.Section("server").Key("appsPort").Value())
+	appsPort, err := strconv.Atoi(cFile.Section("dev").Key("appsPort").Value())
 	if err != nil {
 		c.appsPort = 3001
 	} else {
 		c.appsPort = appsPort
 	}
-	routerPort, err := strconv.Atoi(cFile.Section("server").Key("router").Value())
+	c.hostname = cFile.Section("dev").Key("hostname").Value()
+	routerPort, err := strconv.Atoi(cFile.Section("router").Key("port").Value())
 	if err != nil {
 		c.routerPort = 8080
 	} else {
@@ -114,6 +118,13 @@ func (c *Config) SetPort(port int) {
 }
 func (c *Config) GetPort() int {
 	return c.port
+}
+
+func (c *Config) SetHostname(hostname string) {
+	c.hostname = hostname
+}
+func (c *Config) GetHostname() string {
+	return c.hostname
 }
 func (c *Config) SetRouterPort(port int) {
 	c.port = port
