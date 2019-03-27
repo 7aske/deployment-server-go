@@ -1,12 +1,52 @@
 body {
 	background-color: grey;
+	overflow-x: hidden;
 }
-span {
-	.online {
-		font-weight: 700;
 
+nav {
+
+}
+
+#appContainer {
+	.card {
+		.card-header {
+			span {
+				//font-size: 18px;
+				font-weight: bold;
+			}
+		}
+
+		.card-footer {
+			button {
+				i, svg, path {
+					pointer-events: none;
+				}
+
+				width: 100px;
+			}
+		}
 	}
-	.offline {
-		font-weight: 700;
+
+	li {
+		height: 50px;
+		padding-right: 10px;
+	}
+}
+
+#modalDialog {
+	.input-group-prepend {
+		label, span {
+			width: 10vw;
+		}
+	}
+}
+
+@media screen and (max-width: 540px) {
+	#modalDialog {
+		.input-group-prepend {
+			label, span {
+				width: 25vw;
+			}
+		}
 	}
 }

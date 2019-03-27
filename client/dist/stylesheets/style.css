@@ -1,12 +1,30 @@
 body {
   background-color: grey;
+  overflow-x: hidden;
 }
 
-span .online {
-  font-weight: 700;
+#appContainer .card .card-header span {
+  font-weight: bold;
 }
-span .offline {
-  font-weight: 700;
+#appContainer .card .card-footer button {
+  width: 100px;
+}
+#appContainer .card .card-footer button i, #appContainer .card .card-footer button svg, #appContainer .card .card-footer button path {
+  pointer-events: none;
+}
+#appContainer li {
+  height: 50px;
+  padding-right: 10px;
+}
+
+#modalDialog .input-group-prepend label, #modalDialog .input-group-prepend span {
+  width: 10vw;
+}
+
+@media screen and (max-width: 540px) {
+  #modalDialog .input-group-prepend label, #modalDialog .input-group-prepend span {
+    width: 25vw;
+  }
 }
 
 /*# sourceMappingURL=style.css.map */

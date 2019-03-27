@@ -5,41 +5,118 @@
     <meta name="viewport"
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <script defer src="https://use.fontawesome.com/releases/v5.8.1/js/all.js"></script>
     <link rel="stylesheet" href="../node_modules/bootstrap/dist/css/bootstrap.css">
     <link rel="stylesheet" href="./stylesheets/scrollbar.css">
+    <link rel="stylesheet" href="./stylesheets/sidebar.css">
     <link rel="stylesheet" href="./stylesheets/style.css">
     <title>Deployment Server</title>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <a class="navbar-brand" href="#">Navbar</a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarText"
-            aria-controls="navbarText" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navbarText">
-        <ul class="navbar-nav mr-auto">
-            <li class="nav-item active">
-                <a class="nav-link" href="#">Home</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">Features</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">Pricing</a>
-            </li>
-        </ul>
-    </div>
-</nav>
-<main>
-    <div class="accordion" id="appContainer">
+<div class="d-flex" id="wrapper">
 
-    </div>
-</main>
+    <!-- Sidebar -->
+    <aside class="bg-light border-right" id="sidebar-wrapper">
+        <div class="sidebar-heading">Controls</div>
+        <div class="list-group list-group-flush">
+            <button type="button" class="list-group-item list-group-item-action bg-light" data-toggle="modal"
+                    data-target="#modalDialog" id="deployBtn">
+                Deploy
+            </button>
+            <!--            <a href="#" class="list-group-item list-group-item-action bg-light">Update</a>-->
+            <!--            <a href="#" class="list-group-item list-group-item-action bg-light">Run</a>-->
+            <!--            <a href="#" class="list-group-item list-group-item-action bg-light">Find</a>-->
+            <!--            <a href="#" class="list-group-item list-group-item-action bg-light">Profile</a>-->
+            <!--            <a href="#" class="list-group-item list-group-item-action bg-light">Status</a>-->
+        </div>
+    </aside>
 
+    <!-- Page Content -->
+    <main id="page-content-wrapper">
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <button class="btn btn-link text-dark" id="menu-toggle"><i class="fas fa-bars fa-2x"></i></button>
+            <button class="navbar-toggler border-0" type="button" data-toggle="collapse"
+                    data-target="#navbarCollapse"
+                    aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+                <i class="fas fa-caret-square-down fa-2x text-dark"></i>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarCollapse">
+                <ul class="navbar-nav ml-auto mt-2 mt-lg-0">
+                    <li class="nav-item active">
+                        <a class="nav-link" href="#">Home</a>
+                    </li>
+<!--                    <li class="nav-item dropdown">-->
+<!--                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"-->
+<!--                           data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">-->
+<!--                            Dropdown-->
+<!--                        </a>-->
+<!--                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">-->
+<!--                            <a class="dropdown-item" href="#">Action</a>-->
+<!--                            <a class="dropdown-item" href="#">Another action</a>-->
+<!--                            <div class="dropdown-divider"></div>-->
+<!--                            <a class="dropdown-item" href="#">Something else here</a>-->
+<!--                        </div>-->
+<!--                    </li>-->
+                </ul>
+            </div>
+        </nav>
+        <section class="accordion" id="appContainer">
+
+        </section>
+    </main>
+</div>
+<!-- Modal -->
+<div class="modal fade" id="modalDialog" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLongTitle">Deploy</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="input-group input-group-sm mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">Repository</span>
+                        </div>
+                        <input type="text" name="repo" id="repo" class="form-control" aria-label="Small">
+                    </div>
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <label class="input-group-text" for="runner">Runner</label>
+                        </div>
+                        <select class="custom-select" name="runner" id="runner">
+                            <option selected value="node">Node</option>
+                            <option value="web">Web</option>
+                        </select>
+                    </div>
+                    <div class="input-group input-group-sm mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">Repository</span>
+                        </div>
+                        <input type="text" name="hostname" id="hostname" class="form-control" aria-label="Small">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" data-dismiss="modal" id="btnModalCancel"><i
+                        class="fas fa-times"></i></button>
+                <button type="button" class="btn btn-success" data-dismiss="modal" id="btnModalConfirm"><i
+                        class="fas fa-check"></i></button>
+            </div>
+        </div>
+    </div>
+</div>
 <script>const exports = {};</script>
-<!--<script>const require = () => {};</script>-->
 <script src="../node_modules/jquery/dist/jquery.js"></script>
+<script>
+	$("#menu-toggle").click(function (e) {
+		e.preventDefault();
+		$("#wrapper").toggleClass("toggled");
+	});
+</script>
 <script src="../node_modules/bootstrap/dist/js/bootstrap.bundle.js"></script>
 <script src="../node_modules/bootstrap/dist/js/bootstrap.js"></script>
 <script src="../node_modules/jwt-decode/build/jwt-decode.js"></script>
