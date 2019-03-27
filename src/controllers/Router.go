@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
+//	"net"
 	"net/http"
 	"path"
 	"strconv"
@@ -37,10 +37,17 @@ func NewRouterHandler(d *Deployer, c *config.Config) *RouterHandler {
 }
 
 func (rh *RouterHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
-	host, _, _ := net.SplitHostPort(r.Host)
-	url := host + ":" + rh.hosts[host]
+	// fmt.Println("r.Host " + r.Host)
+	// fmt.Println("r.URL.Host " + r.URL.Host)
+	// host, _, _ := net.SplitHostPort(r.Host)
+	protocol := "http://"
+	if r.URL.Scheme == "https" {
+		protocol = "https://"
+	}
+	host := r.Host
+	url := protocol + host + ":" + rh.hosts[host]
 	fmt.Println(url)
-	if url == host+":" {
+	if url == protocol + host + ":" {
 		w.WriteHeader(http.StatusNotFound)
 		length, _ := w.Write(rh.statusNotFound)
 		w.Header().Set("Content-Length", strconv.Itoa(length))
