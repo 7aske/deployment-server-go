@@ -69,9 +69,9 @@ function initBackdrop(id: string): HTMLElement {
 }
 
 class PopupDialog {
-	public confirm: HTMLButtonElement | null;
-	public close: HTMLButtonElement | null;
-	public popup: HTMLElement | null;
+	private confirmBtn: HTMLButtonElement | null;
+	private closeBtn: HTMLButtonElement | null;
+	private popup: HTMLElement | null;
 	private readonly backdrop: HTMLElement | null;
 	private store: Store;
 
@@ -81,21 +81,31 @@ class PopupDialog {
 		this.initStyleSheet();
 		this.backdrop = initBackdrop("popup-backdrop");
 		this.popup = null;
-		this.confirm = null;
-		this.close = null;
+		this.confirmBtn = null;
+		this.closeBtn = null;
 	}
-
+	public confirm() {
+		const ev = document.createEvent("Events");
+		ev.initEvent("click", true, false);
+		this.confirmBtn.dispatchEvent(ev);
+	}
+	public cancel() {
+		const ev = document.createEvent("Events");
+		ev.initEvent("click", true, false);
+		this.closeBtn.dispatchEvent(ev);
+		this.store.setState("isPopUp", false);
+	}
 	public open(title: string, body: string, cb?: Function) {
 		this.createPopup(title, body);
-		this.close.addEventListener("click", () => {
+		this.closeBtn.addEventListener("click", () => {
 			this.destroyPopup();
 		});
 		if (cb) {
-			this.confirm.addEventListener("click", () => {
+			this.confirmBtn.addEventListener("click", () => {
 				cb();
 				this.destroyPopup();
 			});
-			this.confirm.style.display = "inline-block";
+			this.confirmBtn.style.display = "inline-block";
 		}
 		setTimeout(() => {
 			this.popup.style.transform = "translateY(10vh)";
@@ -110,12 +120,12 @@ class PopupDialog {
 		this.popup.style.transform = "translateY(-10vh)";
 		this.backdrop.style.backgroundColor = "background-color: rgba(0, 0, 0, 0)";
 		setTimeout(() => {
-			this.confirm.remove();
-			this.close.remove();
+			this.confirmBtn.remove();
+			this.closeBtn.remove();
 			this.popup.remove();
 			this.popup = null;
-			this.confirm = null;
-			this.close = null;
+			this.confirmBtn = null;
+			this.closeBtn = null;
 			this.backdrop.style.visibility = "hidden";
 			this.store.setState("isPopUp", false);
 			this.backdrop.style.color = "0";
@@ -131,8 +141,8 @@ class PopupDialog {
 						</div></div>`;
 		this.backdrop.innerHTML += html;
 		this.popup = document.querySelector("#popup");
-		this.confirm = document.querySelector("#popupConfirm");
-		this.close = document.querySelector("#popupClose");
+		this.confirmBtn = document.querySelector("#popupConfirm");
+		this.closeBtn = document.querySelector("#popupClose");
 	}
 
 	private initStyleSheet() {
@@ -261,7 +271,10 @@ const modalConfirm = document.querySelector("#btnModalConfirm");
 modalConfirm.addEventListener("click", e => doForm(e));
 const modalCancel = document.querySelector("#btnModalCancel");
 const searchInp = document.querySelector("#searchInp") as HTMLInputElement;
-searchInp.addEventListener("keydown", () => {
+searchInp.addEventListener("keydown", e => {
+	if (e.key == "Backspace" && searchInp.value.length == 1) {
+		updateApps();
+	}
 	updateApps(searchInp.value);
 });
 const searchBtn = document.querySelector("#searchBtn");
@@ -279,10 +292,12 @@ function init() {
 	updateApps();
 }
 
-document.addEventListener("keypress", e => {
+document.addEventListener("keydown", e => {
 	switch (e.key) {
 		case "Enter":
-			if (store.getState("isModalUp")) {
+			if (store.getState("isPopUp")) {
+				popup.confirm()
+			} else if (store.getState("isModalUp")) {
 				const ev = document.createEvent("Events");
 				ev.initEvent("click", true, false);
 				modalConfirm.dispatchEvent(ev);
@@ -292,8 +307,11 @@ document.addEventListener("keypress", e => {
 			break;
 		case "Escape":
 			if (store.getState("isPopUp")) {
-				store.setState("isPopUp", false);
-				popup.destroyPopup();
+				popup.cancel();
+			} else if (store.getState("isModalUp")) {
+				const ev = document.createEvent("Events");
+				ev.initEvent("click", true, false);
+				modalCancel.dispatchEvent(ev);
 			}
 	}
 });
@@ -313,9 +331,10 @@ function updateModal() {
 function getOpenExternalButton(hostname: string, port: number) {
 	let url = window.location.protocol + "//" + hostname;
 	if (hostname == "") {
-		let sep = window.location.hostname.split(".");
-		sep.shift();
-		url = window.location.protocol + "//" + sep.join(".") + ":" + port;
+		// let sep = window.location.hostname.split(".");
+		// sep.shift();
+		// url = window.location.protocol + "//" + sep.join(".") + ":" + port;
+		url += window.location.hostname + ":" + port;
 	}
 	return `<button class="btn btn-secondary" onclick="window.open('${url}', '_blank')"><i class="fas fa-external-link-alt fa-2x"></i><br>Open</button>`;
 
@@ -400,7 +419,7 @@ function appTemplate(app: App, running: boolean): string {
                             <span>Port:</span><span>${app.port == 0 ? "none" : app.port}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
-                            <span>Hostname:</span><span>${app.hostname}</span>
+                            <span>Hostname:</span><span>${app.hostname == "" ? window.location.hostname + ":" + app.port : app.hostname}</span>
                         </li>
                     </ul>
                     <ul class="list-group list-group-flush col-lg-6 col-md-12 pl-1 pr-1">
@@ -437,7 +456,7 @@ function appTemplate(app: App, running: boolean): string {
 function updateApps(query: string = "") {
 	const url = baseUrl;
 	url.pathname = "/api/find";
-	url.search = "?app=" + searchInp.value;
+	url.search = "?app=" + query;
 	fetch(url.href).then(j => {
 		j.json().then(res => {
 			console.log(res);

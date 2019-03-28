@@ -32,7 +32,6 @@ func (c *Config) Write() {
 	}
 	cFile.Section("dev").Key("port").SetValue(strconv.Itoa(c.port))
 	cFile.Section("dev").Key("appsPort").SetValue(strconv.Itoa(c.appsPort))
-	cFile.Section("dev").Key("hostname").SetValue(c.hostname)
 
 	cFile.Section("router").Key("port").SetValue(strconv.Itoa(c.routerPort))
 
@@ -42,6 +41,7 @@ func (c *Config) Write() {
 
 	cFile.Section("deployer").Key("root").SetValue(c.appsRoot)
 	cFile.Section("deployer").Key("server").SetValue(c.basicServer)
+	cFile.Section("deployer").Key("hostname").SetValue(c.hostname)
 
 	err = cFile.SaveTo(cFilePath)
 	if err != nil {
@@ -68,14 +68,12 @@ func (c *Config) Read() {
 	} else {
 		c.appsPort = appsPort
 	}
-	hostname := cFile.Section("dev").Key("hostname").Value()
 	routerPort, err := strconv.Atoi(cFile.Section("router").Key("port").Value())
 	if err != nil {
 		c.routerPort = 8080
 	} else {
 		c.routerPort = routerPort
 	}
-	c.hostname = hostname
 	secret := []byte(cFile.Section("auth").Key("secret").Value())
 	pass := cFile.Section("auth").Key("pass").Value()
 	user := cFile.Section("auth").Key("user").Value()
@@ -106,6 +104,8 @@ func (c *Config) Read() {
 			c.basicServer = path.Join(cwd, server)
 		}
 	}
+	hostname := cFile.Section("deployer").Key("hostname").Value()
+	c.hostname = hostname
 }
 
 func LoadConfig() *Config {
@@ -120,7 +120,6 @@ func (c *Config) SetPort(port int) {
 func (c *Config) GetPort() int {
 	return c.port
 }
-
 func (c *Config) SetHostname(hostname string) {
 	c.hostname = hostname
 }

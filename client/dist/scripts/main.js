@@ -21,21 +21,32 @@ var PopupDialog = /** @class */ (function () {
         this.initStyleSheet();
         this.backdrop = initBackdrop("popup-backdrop");
         this.popup = null;
-        this.confirm = null;
-        this.close = null;
+        this.confirmBtn = null;
+        this.closeBtn = null;
     }
+    PopupDialog.prototype.confirm = function () {
+        var ev = document.createEvent("Events");
+        ev.initEvent("click", true, false);
+        this.confirmBtn.dispatchEvent(ev);
+    };
+    PopupDialog.prototype.cancel = function () {
+        var ev = document.createEvent("Events");
+        ev.initEvent("click", true, false);
+        this.closeBtn.dispatchEvent(ev);
+        this.store.setState("isPopUp", false);
+    };
     PopupDialog.prototype.open = function (title, body, cb) {
         var _this = this;
         this.createPopup(title, body);
-        this.close.addEventListener("click", function () {
+        this.closeBtn.addEventListener("click", function () {
             _this.destroyPopup();
         });
         if (cb) {
-            this.confirm.addEventListener("click", function () {
+            this.confirmBtn.addEventListener("click", function () {
                 cb();
                 _this.destroyPopup();
             });
-            this.confirm.style.display = "inline-block";
+            this.confirmBtn.style.display = "inline-block";
         }
         setTimeout(function () {
             _this.popup.style.transform = "translateY(10vh)";
@@ -50,12 +61,12 @@ var PopupDialog = /** @class */ (function () {
         this.popup.style.transform = "translateY(-10vh)";
         this.backdrop.style.backgroundColor = "background-color: rgba(0, 0, 0, 0)";
         setTimeout(function () {
-            _this.confirm.remove();
-            _this.close.remove();
+            _this.confirmBtn.remove();
+            _this.closeBtn.remove();
             _this.popup.remove();
             _this.popup = null;
-            _this.confirm = null;
-            _this.close = null;
+            _this.confirmBtn = null;
+            _this.closeBtn = null;
             _this.backdrop.style.visibility = "hidden";
             _this.store.setState("isPopUp", false);
             _this.backdrop.style.color = "0";
@@ -65,8 +76,8 @@ var PopupDialog = /** @class */ (function () {
         var html = "<div id=\"popup\" class=\"card\"><div class=\"card-header\"><h3 class=\"card-title mb-0\">" + title + "</h3>\n\t\t\t\t\t\t</div><div class=\"card-body\">" + body + "</div>\n\t\t\t\t\t\t<div class=\"card-footer\">\n\t\t\t\t\t\t\t<button class=\"btn btn-danger\" id=\"popupClose\"><i class=\"fas fa-times\"></i></button>\n\t\t\t\t\t\t\t<button class=\"btn btn-success\" id=\"popupConfirm\"><i class=\"fas fa-check\"></i></button>\n\t\t\t\t\t\t</div></div>";
         this.backdrop.innerHTML += html;
         this.popup = document.querySelector("#popup");
-        this.confirm = document.querySelector("#popupConfirm");
-        this.close = document.querySelector("#popupClose");
+        this.confirmBtn = document.querySelector("#popupConfirm");
+        this.closeBtn = document.querySelector("#popupClose");
     };
     PopupDialog.prototype.initStyleSheet = function () {
         var rule0 = "#popup-backdrop {\n\t\t\t\ttransition: 100ms all;\n\t\t\t\tvisibility: hidden;\n\t\t\t\tposition: absolute;\n\t\t\t\ttop:0;\n\t\t\t\tleft:0;\n\t\t\t\theight: 100vh;\n\t\t\t\twidth: 100vw;\n\t\t\t\topacity: 1;\n\t\t\t\tbackground-color: rgba(0, 0, 0, 0.4);\n\t\t\t\tz-index: 2000;}";
@@ -168,7 +179,10 @@ var modalConfirm = document.querySelector("#btnModalConfirm");
 modalConfirm.addEventListener("click", function (e) { return doForm(e); });
 var modalCancel = document.querySelector("#btnModalCancel");
 var searchInp = document.querySelector("#searchInp");
-searchInp.addEventListener("keydown", function () {
+searchInp.addEventListener("keydown", function (e) {
+    if (e.key == "Backspace" && searchInp.value.length == 1) {
+        updateApps();
+    }
     updateApps(searchInp.value);
 });
 var searchBtn = document.querySelector("#searchBtn");
@@ -184,10 +198,13 @@ $("#modalDialog")
 function init() {
     updateApps();
 }
-document.addEventListener("keypress", function (e) {
+document.addEventListener("keydown", function (e) {
     switch (e.key) {
         case "Enter":
-            if (store.getState("isModalUp")) {
+            if (store.getState("isPopUp")) {
+                popup.confirm();
+            }
+            else if (store.getState("isModalUp")) {
                 var ev = document.createEvent("Events");
                 ev.initEvent("click", true, false);
                 modalConfirm.dispatchEvent(ev);
@@ -198,8 +215,12 @@ document.addEventListener("keypress", function (e) {
             break;
         case "Escape":
             if (store.getState("isPopUp")) {
-                store.setState("isPopUp", false);
-                popup.destroyPopup();
+                popup.cancel();
+            }
+            else if (store.getState("isModalUp")) {
+                var ev = document.createEvent("Events");
+                ev.initEvent("click", true, false);
+                modalCancel.dispatchEvent(ev);
             }
     }
 });
@@ -217,9 +238,10 @@ function updateModal() {
 function getOpenExternalButton(hostname, port) {
     var url = window.location.protocol + "//" + hostname;
     if (hostname == "") {
-        var sep = window.location.hostname.split(".");
-        sep.shift();
-        url = window.location.protocol + "//" + sep.join(".") + ":" + port;
+        // let sep = window.location.hostname.split(".");
+        // sep.shift();
+        // url = window.location.protocol + "//" + sep.join(".") + ":" + port;
+        url += window.location.hostname + ":" + port;
     }
     return "<button class=\"btn btn-secondary\" onclick=\"window.open('" + url + "', '_blank')\"><i class=\"fas fa-external-link-alt fa-2x\"></i><br>Open</button>";
 }
@@ -268,13 +290,13 @@ function runnerIcon(runner) {
     return "<i class=\"fab fa-" + r + " fa-2x\"></i>";
 }
 function appTemplate(app, running) {
-    return " <div class=\"card\">\n            <div class=\"card-header\" id=\"heading" + app.id + "\">\n\t\t\t\t<span class=\"float-right " + (running ? "online text-success" : "offline text-danger") + "\">" + (running ? "Online <i class=\"fas fa-globe\"></i>" : "Offline <i class=\"fas fa-times-circle\"></i>") + "</span>\n                <h3 class=\"mb-2\" data-toggle=\"collapse\" data-target=\"#collapse" + app.id + "\" aria-expanded=\"false\" aria-controls=\"collapse" + app.id + "\">\n\t\t\t\t\t" + app.name + "\n                </h3>\n                <h6 class=\"mb-0 text-muted\" data-toggle=\"collapse\" data-target=\"#collapse" + app.id + "\" aria-expanded=\"false\" aria-controls=\"collapse" + app.id + "\">\n\t\t\t\t\t" + app.repo + "\n\t\t\t\t</h6>\n            </div>\n            <div id=\"collapse" + app.id + "\" class=\"collapse\" aria-labelledby=\"heading" + app.id + "\" data-parent=\"#appContainer\">\n                <div class=\"card-body row p-0\">\n                    <ul class=\"list-group list-group-flush col-lg-6 col-md-12 pl-1 pr-1\">\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>ID:</span><span>" + app.id + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Name:</span><span>" + app.name + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Repo:</span><span>" + app.repo + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Root:</span><span>" + app.name + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Port:</span><span>" + (app.port == 0 ? "none" : app.port) + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Hostname:</span><span>" + app.hostname + "</span>\n                        </li>\n                    </ul>\n                    <ul class=\"list-group list-group-flush col-lg-6 col-md-12 pl-1 pr-1\">\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Deployed:</span><span>" + dateTemplate(app.deployed) + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>LastUpdated:</span><span>" + dateTemplate(app.last_updated) + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>LastRun:</span><span>" + dateTemplate(app.last_run) + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Uptime:</span><span>" + (running ? app.uptime.replace(/\.(.*?)s/g, "s") : "offline") + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Runner:</span><span>" + runnerIcon(app.runner) + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Pid:</span><span>" + (app.pid == 0 ? "offline" : app.pid) + "</span>\n                        </li>\n                    </ul>\n                </div>\n                <div class=\"card-footer text-right d-flex justify-content-around\">\n                \t" + (running ? getOpenExternalButton(app.hostname, app.port) : "") + "\n                \t" + (running ? getButton(app.id, "kill") : getButton(app.id, "run")) + "\n    \t\t\t\t" + getButton(app.id, "update") + "\n    \t\t\t\t" + getButton(app.id, "remove") + "\n\t\t\t\t</div>\n            </div>\n        </div>";
+    return " <div class=\"card\">\n            <div class=\"card-header\" id=\"heading" + app.id + "\">\n\t\t\t\t<span class=\"float-right " + (running ? "online text-success" : "offline text-danger") + "\">" + (running ? "Online <i class=\"fas fa-globe\"></i>" : "Offline <i class=\"fas fa-times-circle\"></i>") + "</span>\n                <h3 class=\"mb-2\" data-toggle=\"collapse\" data-target=\"#collapse" + app.id + "\" aria-expanded=\"false\" aria-controls=\"collapse" + app.id + "\">\n\t\t\t\t\t" + app.name + "\n                </h3>\n                <h6 class=\"mb-0 text-muted\" data-toggle=\"collapse\" data-target=\"#collapse" + app.id + "\" aria-expanded=\"false\" aria-controls=\"collapse" + app.id + "\">\n\t\t\t\t\t" + app.repo + "\n\t\t\t\t</h6>\n            </div>\n            <div id=\"collapse" + app.id + "\" class=\"collapse\" aria-labelledby=\"heading" + app.id + "\" data-parent=\"#appContainer\">\n                <div class=\"card-body row p-0\">\n                    <ul class=\"list-group list-group-flush col-lg-6 col-md-12 pl-1 pr-1\">\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>ID:</span><span>" + app.id + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Name:</span><span>" + app.name + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Repo:</span><span>" + app.repo + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Root:</span><span>" + app.name + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Port:</span><span>" + (app.port == 0 ? "none" : app.port) + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Hostname:</span><span>" + (app.hostname == "" ? window.location.hostname + ":" + app.port : app.hostname) + "</span>\n                        </li>\n                    </ul>\n                    <ul class=\"list-group list-group-flush col-lg-6 col-md-12 pl-1 pr-1\">\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Deployed:</span><span>" + dateTemplate(app.deployed) + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>LastUpdated:</span><span>" + dateTemplate(app.last_updated) + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>LastRun:</span><span>" + dateTemplate(app.last_run) + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Uptime:</span><span>" + (running ? app.uptime.replace(/\.(.*?)s/g, "s") : "offline") + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Runner:</span><span>" + runnerIcon(app.runner) + "</span>\n                        </li>\n                        <li class=\"list-group-item d-flex justify-content-between\">\n                            <span>Pid:</span><span>" + (app.pid == 0 ? "offline" : app.pid) + "</span>\n                        </li>\n                    </ul>\n                </div>\n                <div class=\"card-footer text-right d-flex justify-content-around\">\n                \t" + (running ? getOpenExternalButton(app.hostname, app.port) : "") + "\n                \t" + (running ? getButton(app.id, "kill") : getButton(app.id, "run")) + "\n    \t\t\t\t" + getButton(app.id, "update") + "\n    \t\t\t\t" + getButton(app.id, "remove") + "\n\t\t\t\t</div>\n            </div>\n        </div>";
 }
 function updateApps(query) {
     if (query === void 0) { query = ""; }
     var url = baseUrl;
     url.pathname = "/api/find";
-    url.search = "?app=" + searchInp.value;
+    url.search = "?app=" + query;
     fetch(url.href).then(function (j) {
         j.json().then(function (res) {
             console.log(res);
