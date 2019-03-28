@@ -21,6 +21,7 @@ type ButtonActions = "run" | "kill" | "update" | "remove";
 export type DataStoreTypes = boolean;
 export type DataStoreKeys =
 	"isModalUp" |
+	"isPopUp" |
 	"loading";
 
 interface DataStore {
@@ -49,6 +50,131 @@ interface State {
 interface _StateProp {
 	value: DataStoreTypes;
 	actions: Function[];
+}
+
+function addStyleSheet(rules: string[]) {
+	const style = document.createElement("style") as HTMLStyleElement;
+	style.appendChild(document.createTextNode(""));
+	document.head.append(style);
+	for (let i = 0; i < rules.length; i++) {
+		(style.sheet as CSSStyleSheet).insertRule(rules[i], i);
+	}
+}
+
+function initBackdrop(id: string): HTMLElement {
+	const bd = document.createElement("div");
+	bd.id = id;
+	document.body.appendChild(bd);
+	return bd;
+}
+
+class PopupDialog {
+	public confirm: HTMLButtonElement | null;
+	public close: HTMLButtonElement | null;
+	public popup: HTMLElement | null;
+	private readonly backdrop: HTMLElement | null;
+	private store: Store;
+
+	constructor(store: Store) {
+		this.store = store;
+		this.initStates();
+		this.initStyleSheet();
+		this.backdrop = initBackdrop("popup-backdrop");
+		this.popup = null;
+		this.confirm = null;
+		this.close = null;
+	}
+
+	public open(title: string, body: string, cb?: Function) {
+		this.createPopup(title, body);
+		this.close.addEventListener("click", () => {
+			this.destroyPopup();
+		});
+		if (cb) {
+			this.confirm.addEventListener("click", () => {
+				cb();
+				this.destroyPopup();
+			});
+			this.confirm.style.display = "inline-block";
+		}
+		setTimeout(() => {
+			this.popup.style.transform = "translateY(10vh)";
+		}, 10);
+		this.backdrop.style.visibility = "visible";
+		this.backdrop.style.opacity = "1";
+		this.backdrop.style.top = window.pageYOffset + "px";
+		this.store.setState("isPopUp", true);
+	}
+
+	public destroyPopup() {
+		this.popup.style.transform = "translateY(-10vh)";
+		this.backdrop.style.backgroundColor = "background-color: rgba(0, 0, 0, 0)";
+		setTimeout(() => {
+			this.confirm.remove();
+			this.close.remove();
+			this.popup.remove();
+			this.popup = null;
+			this.confirm = null;
+			this.close = null;
+			this.backdrop.style.visibility = "hidden";
+			this.store.setState("isPopUp", false);
+			this.backdrop.style.color = "0";
+		}, 100);
+	}
+
+	private createPopup(title: string, body: string) {
+		const html = `<div id="popup" class="card"><div class="card-header"><h3 class="card-title mb-0">${title}</h3>
+						</div><div class="card-body">${body}</div>
+						<div class="card-footer">
+							<button class="btn btn-danger" id="popupClose"><i class="fas fa-times"></i></button>
+							<button class="btn btn-success" id="popupConfirm"><i class="fas fa-check"></i></button>
+						</div></div>`;
+		this.backdrop.innerHTML += html;
+		this.popup = document.querySelector("#popup");
+		this.confirm = document.querySelector("#popupConfirm");
+		this.close = document.querySelector("#popupClose");
+	}
+
+	private initStyleSheet() {
+		const rule0 = `#popup-backdrop {
+				transition: 100ms all;
+				visibility: hidden;
+				position: absolute;
+				top:0;
+				left:0;
+				height: 100vh;
+				width: 100vw;
+				opacity: 1;
+				background-color: rgba(0, 0, 0, 0.4);
+				z-index: 2000;}`;
+		const rule1 = `#popup-backdrop #popup {
+				-webkit-transition: 200ms -webkit-transform;
+				transition: 200ms -webkit-transform;
+				transition: 200ms transform;
+				transition: 200ms transform, 200ms -webkit-transform;
+				max-width: 600px;
+				max-height: 300px;
+				margin: 20vh auto;}`;
+		const rule2 = `#popup-backdrop #popup .card-body {
+			  font-size: 1.5rem;
+			  overflow-y: scroll;}`;
+		const rule3 = `#popup-backdrop #popup .card-footer {
+			  text-align: right;}`;
+		const rule4 = `#popup-backdrop #popup #modalConfirm {
+			  display: none;}`;
+		const rule5 = `#popup-backdrop #popup .card-footer button {
+		width: 75px;}`;
+		const rules: string[] = [rule0, rule1, rule2, rule3, rule4, rule5];
+		addStyleSheet(rules);
+	}
+
+	private initStates() {
+		this.store.registerState("isPopUp", false);
+	}
+
+	public getBackdrop(): HTMLElement {
+		return this.backdrop;
+	}
 }
 
 class Store implements DataStore {
@@ -121,9 +247,9 @@ const initialState: State = {
 };
 
 const store = new Store(initialState);
+const popup = new PopupDialog(store);
 store.subscribe("isModalUp", [updateModal]);
 store.subscribe("loading", [toggleLoader]);
-
 const baseUrl = new URL(window.location.protocol + "//" + window.location.hostname + ":" + window.location.port);
 const token = document.cookie.split("; ").filter(e => e.startsWith("Authorization"))[0].split("Bearer ")[1].replace("\"", " ");
 // @ts-ignore
@@ -153,7 +279,7 @@ function init() {
 	updateApps();
 }
 
-window.addEventListener("keypress", e => {
+document.addEventListener("keypress", e => {
 	switch (e.key) {
 		case "Enter":
 			if (store.getState("isModalUp")) {
@@ -164,7 +290,11 @@ window.addEventListener("keypress", e => {
 				updateApps(searchInp.value);
 			}
 			break;
-
+		case "Escape":
+			if (store.getState("isPopUp")) {
+				store.setState("isPopUp", false);
+				popup.destroyPopup();
+			}
 	}
 });
 
@@ -183,7 +313,7 @@ function updateModal() {
 function getOpenExternalButton(hostname: string, port: number) {
 	let url = window.location.protocol + "//" + hostname;
 	if (hostname == "") {
-		let sep = window.location.hostname.split(".")
+		let sep = window.location.hostname.split(".");
 		sep.shift();
 		url = window.location.protocol + "//" + sep.join(".") + ":" + port;
 	}
@@ -326,70 +456,74 @@ function updateApps(query: string = "") {
 }
 
 function doAction(event: Event) {
-	const url = baseUrl;
-	const btn = event.target as HTMLButtonElement;
-	const action = btn.attributes.getNamedItem("data-action").value;
-	const id = btn.attributes.getNamedItem("data-id").value;
-	const data = {app: id};
-	url.pathname = `/api/${action}`;
-	store.setState("loading", true);
-	fetch(url.href, {
-		method: "POST", // *GET, POST, PUT, DELETE, etc.
-		mode: "cors", // no-cors, cors, *same-origin
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify(data), // body data type must match "Content-Type" header
-	})
-		.then(res => {
-			if (res.status == 200) {
-				updateApps();
-			}
-			store.setState("loading", false);
+	popup.open("Warning", "Are you sure?", () => {
+		const url = baseUrl;
+		const btn = event.target as HTMLButtonElement;
+		const action = btn.attributes.getNamedItem("data-action").value;
+		const id = btn.attributes.getNamedItem("data-id").value;
+		const data = {app: id};
+		url.pathname = `/api/${action}`;
+		store.setState("loading", true);
+		fetch(url.href, {
+			method: "POST", // *GET, POST, PUT, DELETE, etc.
+			mode: "cors", // no-cors, cors, *same-origin
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(data), // body data type must match "Content-Type" header
 		})
-		.catch(err => {
-			store.setState("loading", false);
-			console.log(err);
-		});
+			.then(res => {
+				if (res.status == 200) {
+					updateApps();
+				}
+				store.setState("loading", false);
+			})
+			.catch(err => {
+				store.setState("loading", false);
+				console.log(err);
+			});
+	});
 }
 
 function doForm(event: Event) {
-	event.preventDefault();
-	const url = baseUrl;
-	const repo = document.querySelector("#repo") as HTMLInputElement;
-	const runner = document.querySelector("#runner") as HTMLInputElement;
-	const hostname = document.querySelector("#hostname") as HTMLInputElement;
-	const port = document.querySelector("#port") as HTMLInputElement;
-	const data = {
-		hostname: hostname.value,
-		runner: runner.value,
-		repo: repo.value.startsWith("https://") ? repo.value : "https://" + repo.value,
-		port: port.value,
-	};
-	url.pathname = "/api/deploy";
-	store.setState("loading", true);
-	// @ts-ignore
-	$("#modalDialog").modal("hide");
-	fetch(url.href, {
-		method: "POST", // *GET, POST, PUT, DELETE, etc.
-		mode: "cors", // no-cors, cors, *same-origin
-		headers: {
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify(data), // body data type must match "Content-Type" header
-	})
-		.then(res => {
-			if (res.status == 200) {
-				// @ts-ignore
-				$("#modalDialog").modal("hide");
-				updateApps();
-			}
-			store.setState("loading", false);
+	popup.open("Warning", "Are you sure?", () => {
+		event.preventDefault();
+		const url = baseUrl;
+		const repo = document.querySelector("#repo") as HTMLInputElement;
+		const runner = document.querySelector("#runner") as HTMLInputElement;
+		const hostname = document.querySelector("#hostname") as HTMLInputElement;
+		const port = document.querySelector("#port") as HTMLInputElement;
+		const data = {
+			hostname: hostname.value,
+			runner: runner.value,
+			repo: repo.value.startsWith("https://") ? repo.value : "https://" + repo.value,
+			port: port.value,
+		};
+		url.pathname = "/api/deploy";
+		store.setState("loading", true);
+		// @ts-ignore
+		$("#modalDialog").modal("hide");
+		fetch(url.href, {
+			method: "POST", // *GET, POST, PUT, DELETE, etc.
+			mode: "cors", // no-cors, cors, *same-origin
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(data), // body data type must match "Content-Type" header
 		})
-		.catch(err => {
-			console.log(err);
-			store.setState("loading", false);
-		});
+			.then(res => {
+				if (res.status == 200) {
+					// @ts-ignore
+					$("#modalDialog").modal("hide");
+					updateApps();
+				}
+				store.setState("loading", false);
+			})
+			.catch(err => {
+				console.log(err);
+				store.setState("loading", false);
+			});
+	});
 }
 
 init();
