@@ -1,8 +1,8 @@
 package main
 
 import (
-	"./controllers"
-	"./utils"
+	"../../internal/controllers"
+	"../../internal/utils"
 	"os"
 )
 
