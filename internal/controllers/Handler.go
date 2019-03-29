@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -31,7 +32,7 @@ type DeployRequest struct {
 	Repo  string `json:"repo"`
 }
 type FindResponse struct {
-	Running  *[]AppJSON  `json:"running"`
+	Running  *[]AppJSON `json:"running"`
 	Deployed *[]AppJSON `json:"deployed"`
 }
 type ErrorResponse struct {
@@ -41,6 +42,18 @@ type ErrorResponse struct {
 type SuccessResponse struct {
 	Message string  `json:"message"`
 	App     AppJSON `json:"app"`
+}
+type SettingsRequest struct {
+	Id       string            `json:"id"`
+	Settings map[string]string `json:"settings"`
+}
+
+func (s *SettingsRequest) Read(body *io.ReadCloser) {
+	jsonBytes, _ := ioutil.ReadAll(*body)
+	err := json.Unmarshal(jsonBytes, s)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 //func (h Handler) LoadConfig() {
@@ -72,12 +85,12 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
 		if h.verifyToken(token) {
 			if r.Method == http.MethodPost {
-				jsonBody := utils.GetJsonMap(r.Body)
-				//name := utils.GetNameFromRepo(jsonBody["repo"])
+				jsonBody := getJsonMap(&r.Body)
+				//name := GetNameFromRepo(jsonBody["repo"])
 				repo := jsonBody["repo"]
 				runner := jsonBody["runner"]
 				hostname := jsonBody["hostname"]
-				port, err :=  strconv.Atoi(jsonBody["port"])
+				port, err := strconv.Atoi(jsonBody["port"])
 				if err != nil {
 					port = 0
 				}
@@ -141,7 +154,7 @@ func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
 		if h.verifyToken(token) {
 			if r.Method == http.MethodPost {
-				body := utils.GetJsonMap(r.Body)
+				body := getJsonMap(&r.Body)
 				name := body["app"]
 				if appJson, ok := h.GetDeployer().GetAppD(name); ok {
 					app := NewAppFromJson(appJson)
@@ -186,7 +199,7 @@ func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
 		if h.verifyToken(token) {
 			if r.Method == http.MethodPost {
-				body := utils.GetJsonMap(r.Body)
+				body := getJsonMap(&r.Body)
 				name := body["app"]
 				if appJson, ok := h.GetDeployer().GetAppD(name); ok {
 					app := NewAppFromJson(appJson)
@@ -268,7 +281,7 @@ func (h *Handler) HandleKill(w http.ResponseWriter, r *http.Request) {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
 		if h.verifyToken(token) {
 			if r.Method == http.MethodPost {
-				body := utils.GetJsonMap(r.Body)
+				body := getJsonMap(&r.Body)
 				name := body["app"]
 				if app, ok := h.GetDeployer().GetApp(name); ok {
 					_ = h.GetDeployer().Kill(app)
@@ -305,7 +318,7 @@ func (h *Handler) HandleRemove(w http.ResponseWriter, r *http.Request) {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
 		if h.verifyToken(token) {
 			if r.Method == http.MethodPost {
-				body := utils.GetJsonMap(r.Body)
+				body := getJsonMap(&r.Body)
 				name := body["app"]
 				if appJson, ok := h.GetDeployer().GetAppD(name); ok {
 					if app, ok := h.GetDeployer().GetApp(appJson.Id); ok {
@@ -335,7 +348,41 @@ func (h *Handler) HandleRemove(w http.ResponseWriter, r *http.Request) {
 
 }
 func (h *Handler) HandleSettings(w http.ResponseWriter, r *http.Request) {
-	// TODO: settings
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if cookie, err := r.Cookie("Authorization");
+		err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		length, _ := w.Write(h.statusUnauthorized)
+		w.Header().Set("Content-Length", strconv.Itoa(length))
+	} else {
+		token := strings.Split(cookie.Value, "Bearer ")[1]
+		if h.verifyToken(token) {
+			if r.Method == http.MethodPost {
+				req := SettingsRequest{}
+				req.Read(&r.Body)
+				err := h.GetDeployer().Settings(req.Id, req.Settings)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					jsonResponse, _ := json.Marshal(ErrorResponse{Message: err.Error(), Id: req.Id})
+					length, _ := w.Write(jsonResponse)
+					w.Header().Set("Content-Length", strconv.Itoa(length))
+				} else {
+					jsonResponse, _ := json.Marshal(SuccessResponse{Message: "updated", App: AppJSON{Id:req.Id}})
+					length, _ := w.Write(jsonResponse)
+					w.Header().Set("Content-Length", strconv.Itoa(length))
+				}
+
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				length, _ := w.Write(h.statusMethodNotAllowed)
+				w.Header().Set("Content-Length", strconv.Itoa(length))
+			}
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+			length, _ := w.Write(h.statusUnauthorized)
+			w.Header().Set("Content-Length", strconv.Itoa(length))
+		}
+	}
 }
 func (h *Handler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie("Authorization"); err != nil {
@@ -459,4 +506,18 @@ func queryApps(search string, apps *[]AppJSON) *[]AppJSON {
 		}
 	}
 	return &out
+}
+func getJsonMap(body *io.ReadCloser) map[string]string {
+	output := make(map[string]string)
+	jsonBytes, _ := ioutil.ReadAll(*body)
+	err := json.Unmarshal(jsonBytes, &output)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return output
+}
+
+func unmarshalApp(reader *io.ReadCloser, app *AppJSON) {
+	body := getJsonMap(reader)
+	_ = json.Unmarshal([]byte(body["app"]), app)
 }

@@ -3,10 +3,7 @@ package utils
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
 	"regexp"
 )
@@ -115,13 +112,6 @@ func Hash(str string) string {
 	h := sha256.New()
 	h.Write([]byte(str))
 	return hex.EncodeToString(h.Sum(nil))
-}
-
-func GetJsonMap(body io.ReadCloser) map[string]string{
-	output := make(map[string]string)
-	jsonBytes, _ := ioutil.ReadAll(body)
-	_ = json.Unmarshal(jsonBytes, &output)
-	return output
 }
 
 func GetNameFromRepo(repo string) string {

@@ -1,5 +1,5 @@
 package controllers
-
+// TODO: in-memory deployed apps
 import (
 	"../config"
 	"../utils"
@@ -11,15 +11,17 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 )
 
 type Deployer struct {
-	config *config.Config
-	port   int
-	apps   []*App
-	appsD  []AppJSON
+	config  *config.Config
+	port    int
+	apps    []*App
+	appsD   []AppJSON
+	runners []string
 }
 type AppsJSON struct {
 	Apps []AppJSON `json:"apps"`
@@ -39,6 +41,7 @@ func NewDeployer(cfg *config.Config) Deployer {
 	utils.MakeDirIfNotExist(cfg.GetAppsRoot())
 	d.initAppsJson()
 	d.GetDeployedApps()
+	d.runners = []string{"node", "web", "python"}
 	//arr := []int{1,2,3}
 	//arr = append(arr[:1], arr[2:]...)
 	//fmt.Println(arr)
@@ -137,6 +140,9 @@ func (d *Deployer) RemoveAppD(a *AppJSON) {
 }
 
 func (d *Deployer) Deploy(repo string, runner string, hostname string, port int) (*App, error) {
+	if utils.Contains(runner, &d.runners) == -1 {
+		return &App{}, errors.New("unknown runner")
+	}
 	name := utils.GetNameFromRepo(repo)
 	app := NewApp(repo, name, runner)
 	app.SetRoot(path.Join(d.GetConfig().GetAppsRoot(), app.GetName()))
@@ -186,6 +192,9 @@ func (d *Deployer) Update(a *App) error {
 	return nil
 }
 func (d *Deployer) Install(a *App) error {
+	if utils.Contains(a.GetRunner(), &d.runners) == -1 {
+		return errors.New("unknown runner")
+	}
 	switch a.GetRunner() {
 	case "node":
 		npm := exec.Command("npm", "install")
@@ -218,6 +227,9 @@ func (d *Deployer) Install(a *App) error {
 }
 
 func (d *Deployer) Run(a *App) error {
+	if utils.Contains(a.GetRunner(), &d.runners) == -1 {
+		return errors.New("unknown runner")
+	}
 	switch a.GetRunner() {
 	case "node":
 		return d.runNode(a)
@@ -252,6 +264,42 @@ func (d *Deployer) Remove(app *AppJSON) {
 			}
 			d.RemoveAppFromJson(*app)
 		}
+	}
+}
+func (d *Deployer) Settings(id string, settings map[string]string) error {
+	if app, ok := d.GetApp(id); ok {
+		if d.IsAppRunning(app) {
+			return errors.New("app is running")
+		}
+		return errors.New("app in memory")
+	}
+	if appJson, ok := d.GetAppD(id); ok {
+		changed := false
+		for key, value := range settings {
+			switch key {
+			case "port":
+				port, err := strconv.Atoi(value)
+				if err != nil {
+					return err
+				}
+				appJson.Port = port
+				changed = true
+			case "hostname":
+				appJson.Hostname = value
+				changed = true
+			case "runner":
+				if utils.Contains(value, &d.runners) != -1 {
+					appJson.Runner = value
+					changed = true
+				}
+			}
+		}
+		if changed {
+			d.SaveAppToJson(*appJson)
+		}
+		return nil
+	} else {
+		return errors.New("app not found")
 	}
 }
 
@@ -383,6 +431,8 @@ func (d *Deployer) RemoveAppFromJson(app AppJSON) {
 func (d *Deployer) SaveAppToJson(app AppJSON) {
 	pth := path.Join(d.GetConfig().GetAppsRoot(), "apps.json")
 	appsJson := d.GetDeployedApps()
+	app.Pid = 0
+	app.Uptime = ""
 	if pos := d.ContainsAppJSON(&appsJson, &app); pos == -1 {
 		appsJson = append(appsJson, app)
 	} else {
