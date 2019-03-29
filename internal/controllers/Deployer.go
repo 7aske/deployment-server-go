@@ -282,6 +282,9 @@ func (d *Deployer) Settings(id string, settings map[string]string) error {
 				if err != nil {
 					return err
 				}
+				if d.isPortUsed(port) {
+					return errors.New("port in use")
+				}
 				appJson.Port = port
 				changed = true
 			case "hostname":

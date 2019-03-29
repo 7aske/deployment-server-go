@@ -1,3 +1,5 @@
+import set = Reflect.set;
+
 interface App {
 	id: string;
 	repo: string;
@@ -11,17 +13,30 @@ interface App {
 	uptime: string;
 	runner: string;
 	pid?: number;
+
+	[key: string]: string | number
 }
 
-type ButtonActions = "run" | "kill" | "update" | "remove";
+interface Edits {
+	runner?: string;
+	port?: string;
+	hostname?: string;
+
+	[key: string]: string;
+}
+
+type ButtonActions = "run" | "kill" | "update" | "remove" | "settings";
 // interface FindResponse {
 // 	running: App[];
 // 	deployed: App[];
 // }
-export type DataStoreTypes = boolean;
+export type DataStoreTypes = boolean | App | App[];
 export type DataStoreKeys =
 	"isModalUp" |
 	"isPopUp" |
+	"runningApps" |
+	"deployedApps" |
+	"currentApp" |
 	"loading";
 
 interface DataStore {
@@ -31,6 +46,8 @@ interface DataStore {
 	setState(state: DataStoreKeys, value: DataStoreTypes): DataStoreTypes;
 
 	getState(state: DataStoreKeys): DataStoreTypes;
+
+	hasState(state: string): boolean
 
 	registerState(state: DataStoreKeys, value: DataStoreTypes): void;
 
@@ -84,17 +101,20 @@ class PopupDialog {
 		this.confirmBtn = null;
 		this.closeBtn = null;
 	}
+
 	public confirm() {
 		const ev = document.createEvent("Events");
 		ev.initEvent("click", true, false);
 		this.confirmBtn.dispatchEvent(ev);
 	}
+
 	public cancel() {
 		const ev = document.createEvent("Events");
 		ev.initEvent("click", true, false);
 		this.closeBtn.dispatchEvent(ev);
 		this.store.setState("isPopUp", false);
 	}
+
 	public open(title: string, body: string, cb?: Function) {
 		this.createPopup(title, body);
 		this.closeBtn.addEventListener("click", () => {
@@ -112,7 +132,8 @@ class PopupDialog {
 		}, 10);
 		this.backdrop.style.visibility = "visible";
 		this.backdrop.style.opacity = "1";
-		this.backdrop.style.top = window.pageYOffset + "px";
+		this.backdrop.style.height = document.body.offsetHeight + "px";
+		this.popup.style.top = window.pageYOffset + "px";
 		this.store.setState("isPopUp", true);
 	}
 
@@ -166,14 +187,15 @@ class PopupDialog {
 				max-height: 300px;
 				margin: 20vh auto;}`;
 		const rule2 = `#popup-backdrop #popup .card-body {
-			  font-size: 1.5rem;
-			  overflow-y: scroll;}`;
+				font-size: 1.5rem;
+				overflow-y: auto;}`;
 		const rule3 = `#popup-backdrop #popup .card-footer {
-			  text-align: right;}`;
-		const rule4 = `#popup-backdrop #popup #modalConfirm {
-			  display: none;}`;
+				text-align: right;}`;
+		const rule4 = `#popup-backdrop #popup #popupConfirm {
+				display: none;}`;
 		const rule5 = `#popup-backdrop #popup .card-footer button {
-		width: 75px;}`;
+				width: 75px;}`;
+
 		const rules: string[] = [rule0, rule1, rule2, rule3, rule4, rule5];
 		addStyleSheet(rules);
 	}
@@ -184,6 +206,122 @@ class PopupDialog {
 
 	public getBackdrop(): HTMLElement {
 		return this.backdrop;
+	}
+}
+
+export class Modal {
+	private readonly backdrop: HTMLElement;
+	private readonly store: Store;
+	private modal: HTMLElement;
+	private closeBtn: HTMLButtonElement;
+	private script: HTMLScriptElement;
+	public up: boolean;
+
+	constructor(store: Store) {
+		this.store = store;
+		this.initStyleSheets();
+		this.initStates();
+		this.modal = document.createElement("section");
+		this.backdrop = initBackdrop("modal-backdrop");
+		this.closeBtn = null;
+	}
+
+	private createModal(header?: string, body?: string) {
+		this.backdrop.innerHTML = `<div id="modal" class="card"><div class="card-header"><h5 class="card-title mb-0">${header ? header : ""}</h5>
+						</div><div class="card-body">${body ? body : ""}</div>
+						<div class="card-footer pl-3">
+							<button class="btn btn-secondary" id="modalClose">Close</button>
+						</div></div>`;
+		this.closeBtn = document.querySelector("#modalClose") as HTMLButtonElement;
+		this.closeBtn = document.querySelector("#modalClose") as HTMLButtonElement;
+		this.modal = document.querySelector("#modal");
+	}
+
+	public open(header?: string, body?: string, cb?: Function) {
+		this.createModal(header, body);
+		this.closeBtn.addEventListener("click", () => this.destroyModal());
+		// this.confirmBtn.addEventListener("click", () => cb());
+		setTimeout(() => {
+			this.modal.style.transform = "translateY(10vh)";
+		}, 10);
+		this.backdrop.style.visibility = "visible";
+		this.backdrop.style.opacity = "1";
+		this.store.setState("isModalUp", true);
+		this.up = true;
+		// this.backdrop.style.top = window.pageYOffset + "px";
+		this.backdrop.style.height = document.body.offsetHeight + "px";
+		this.modal.style.top = window.pageYOffset + "px";
+	}
+
+	public close() {
+		this.destroyModal();
+		this.up = false;
+		store.setState("currentApp", null);
+	}
+
+	private destroyModal() {
+		this.modal.style.transform = "translateY(-10vh)";
+		this.backdrop.style.backgroundColor = "background-color: rgba(0, 0, 0, 0)";
+		setTimeout(() => {
+			if (this.closeBtn)
+				this.closeBtn.remove();
+			if (this.modal)
+				this.modal.remove();
+			if (this.script)
+				this.script.remove();
+			this.modal = null;
+			this.closeBtn = null;
+			this.script = null;
+			this.backdrop.style.visibility = "hidden";
+			this.store.setState("isModalUp", false);
+			this.backdrop.style.color = "0";
+		}, 100);
+	}
+
+	public runScripts(src: string) {
+		this.script = document.createElement("script");
+		this.script.src = src;
+		this.backdrop.appendChild(this.script);
+	}
+
+	private initStates() {
+		if (!this.store.hasState("isModalUp"))
+			this.store.registerState("isModalUp", false);
+	}
+
+	private initStyleSheets() {
+		const rule0 = `#modal-backdrop {
+			transition: 100ms all;
+			visibility: hidden;
+			position: absolute;
+			top: 0;
+			left:0;
+			height: 100vh;
+			width: 100vw;
+			opacity: 1;
+			background-color: rgba(0, 0, 0, 0.4);
+			z-index: 1500;
+			padding: 20px;
+
+		}`;
+		const rule1 = `#modal-backdrop #modal {
+			-webkit-transition: 200ms -webkit-transform;
+			transition: 200ms -webkit-transform;
+			transition: 200ms transform;
+			transition: 200ms transform, 200ms -webkit-transform;
+			max-width: 800px;
+			min-height: 400px;
+			margin: auto;			
+		}`;
+		addStyleSheet([rule0, rule1]);
+	}
+
+	public getBackdrop(): HTMLElement {
+		return this.backdrop;
+	}
+
+	public getModal(): HTMLElement {
+		return this.modal;
 	}
 }
 
@@ -228,6 +366,14 @@ class Store implements DataStore {
 		}
 	}
 
+	public hasState(state: string): boolean {
+		if (Object.keys(this.state).indexOf(state) == -1) {
+			return false;
+		} else {
+			return true;
+		}
+	}
+
 	public subscribe(name: DataStoreKeys, actions: Function[]) {
 		if (Object.keys(this._state).indexOf(name) == -1) {
 			throw new Error("State is not registered");
@@ -254,6 +400,9 @@ class Store implements DataStore {
 const initialState: State = {
 	isModalUp: false,
 	loading: false,
+	runningApps: [],
+	deployedApps: [],
+	currentApp: null,
 };
 
 const store = new Store(initialState);
@@ -264,12 +413,13 @@ const baseUrl = new URL(window.location.protocol + "//" + window.location.hostna
 const token = document.cookie.split("; ").filter(e => e.startsWith("Authorization"))[0].split("Bearer ")[1].replace("\"", " ");
 // @ts-ignore
 let tokenData = jwt_decode(token);
+const modal = new Modal(store);
 const appContainer = document.querySelector("#appContainer");
-const modal = document.querySelector("#modalDialog");
-const modalForm = document.querySelector("#modalDialog form") as HTMLFormElement;
-const modalConfirm = document.querySelector("#btnModalConfirm");
-modalConfirm.addEventListener("click", e => doForm(e));
-const modalCancel = document.querySelector("#btnModalCancel");
+const deployDialog = document.querySelector("#deployDialog");
+const deployDialogForm = document.querySelector("#deployDialog form") as HTMLFormElement;
+const deployDialogConfirm = document.querySelector("#btnModalConfirm") as HTMLButtonElement;
+deployDialogConfirm.addEventListener("click", e => doForm(e));
+const deployDialogCancel = document.querySelector("#btnModalCancel") as HTMLButtonElement;
 const searchInp = document.querySelector("#searchInp") as HTMLInputElement;
 searchInp.addEventListener("keydown", e => {
 	if (e.key == "Backspace" && searchInp.value.length == 1) {
@@ -284,7 +434,7 @@ searchBtn.addEventListener("click", e => {
 const deployBtn = document.querySelector("#deployBtn");
 deployBtn.addEventListener("click", e => {
 });
-$("#modalDialog")
+$("#deployDialog")
 	.on("shown.bs.modal", () => store.setState("isModalUp", true))
 	.on("hidden.bs.modal", () => store.setState("isModalUp", false));
 
@@ -296,11 +446,9 @@ document.addEventListener("keydown", e => {
 	switch (e.key) {
 		case "Enter":
 			if (store.getState("isPopUp")) {
-				popup.confirm()
+				popup.confirm();
 			} else if (store.getState("isModalUp")) {
-				const ev = document.createEvent("Events");
-				ev.initEvent("click", true, false);
-				modalConfirm.dispatchEvent(ev);
+				deployDialogConfirm.click();
 			} else if (searchInp == document.activeElement) {
 				updateApps(searchInp.value);
 			}
@@ -309,9 +457,11 @@ document.addEventListener("keydown", e => {
 			if (store.getState("isPopUp")) {
 				popup.cancel();
 			} else if (store.getState("isModalUp")) {
-				const ev = document.createEvent("Events");
-				ev.initEvent("click", true, false);
-				modalCancel.dispatchEvent(ev);
+				if (modal.up) {
+					modal.close();
+				} else {
+					deployDialogCancel.click();
+				}
 			}
 	}
 });
@@ -363,6 +513,11 @@ function getButton(id: string, action: ButtonActions): string {
 			icon = "trash";
 			text = "Remove";
 			break;
+		case "settings":
+			color = "secondary";
+			icon = "cogs";
+			text = "Settings";
+			break;
 	}
 
 	return `<button class="btn btn-${color}" data-action=\"${action}\" data-id="${id}" onclick=\"doAction(event)\"><i class="fas fa-${icon} fa-2x"></i><br>${text}</button>`;
@@ -373,7 +528,7 @@ function dateTemplate(dateString: string): string {
 	return new Date(dateString).toLocaleString();
 }
 
-function runnerIcon(runner: string): string {
+function getRunnerIcon(runner: string): string {
 	let r = "";
 	switch (runner) {
 		case "node":
@@ -436,7 +591,7 @@ function appTemplate(app: App, running: boolean): string {
                             <span>Uptime:</span><span>${running ? app.uptime.replace(/\.(.*?)s/g, "s") : "offline"}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
-                            <span>Runner:</span><span>${runnerIcon(app.runner)}</span>
+                            <span>Runner:</span><span>${getRunnerIcon(app.runner)}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
                             <span>Pid:</span><span>${app.pid == 0 ? "offline" : app.pid}</span>
@@ -444,7 +599,7 @@ function appTemplate(app: App, running: boolean): string {
                     </ul>
                 </div>
                 <div class="card-footer text-right d-flex justify-content-around">
-                	${running ? getOpenExternalButton(app.hostname, app.port) : ""}
+                	${running ? getOpenExternalButton(app.hostname, app.port) : getButton(app.id, "settings")}
                 	${running ? getButton(app.id, "kill") : getButton(app.id, "run")}
     				${getButton(app.id, "update")}
     				${getButton(app.id, "remove")}
@@ -453,15 +608,65 @@ function appTemplate(app: App, running: boolean): string {
         </div>`;
 }
 
+function settingsTemplate(app: App): string {
+	return `<div class="row"><div class="col"></div><form class="col-md-8">
+			<div class="input-group input-group-sm mb-3">
+				<div class="input-group-prepend">
+					<span class="input-group-text">ID</span>
+				</div>
+				<input readonly value="${app.id}" type="text" class="form-control" aria-label="Small">
+			</div>
+			<div class="input-group input-group-sm mb-3">
+				<div class="input-group-prepend">
+					<span class="input-group-text">Name</span>
+				</div>
+				<input readonly value="${app.name}" type="text" class="form-control" aria-label="Small">
+			</div>
+			<div class="input-group input-group-sm mb-3">
+				<div class="input-group-prepend">
+					<span class="input-group-text">Repository</span>
+				</div>
+				<input readonly value="${app.repo}" type="text" class="form-control" aria-label="Small">
+			</div>
+			<div class="input-group mb-3">
+				<div class="input-group-prepend">
+					<label class="input-group-text" for="runner">Runner</label>
+				</div>
+				<select class="custom-select" name="runner" id="runnerSettings">
+					<option ${app.runner == "node" ? "selected" : ""} value="node">Node</option>
+					<option ${app.runner == "web" ? "selected" : ""} value="web">Web</option>
+					<option ${app.runner == "python" ? "selected" : ""} value="python">Python</option>
+				</select>
+			</div>
+			<div class="input-group input-group-sm mb-3">
+				<div class="input-group-prepend">
+					<span class="input-group-text">Hostname</span>
+				</div>
+				<input value="${app.hostname}" type="text" name="hostname" id="hostnameSettings" class="form-control" aria-label="Small">
+			</div>
+			<div class="input-group input-group-sm mb-3">
+				<div class="input-group-prepend">
+					<span class="input-group-text">Port</span>
+				</div>
+				<input value="${app.port}" type="text" name="port" id="portSettings" class="form-control" aria-label="Small">
+			</div>
+		</form><div class="col"></div></div>
+		<button class="btn btn-success" type="button" data-id="${app.id}" data-action=\"settings\" onclick=\"doModalForm(event)\"">Update</button>`;
+}
+
 function updateApps(query: string = "") {
 	const url = baseUrl;
 	url.pathname = "/api/find";
 	url.search = "?app=" + query;
 	fetch(url.href).then(j => {
 		j.json().then(res => {
-			console.log(res);
 			const appsD: App[] = res.deployed != null ? res.deployed : [];
 			const apps: App[] = res.running != null ? res.running : [];
+			if (query == "") {
+				store.setState("deployedApps", appsD);
+				store.setState("runningApps", apps);
+				console.log(store);
+			}
 			appContainer.innerHTML = "";
 			appsD.forEach(a => {
 				if (apps.filter(app => a.id == app.id).length == 1) {
@@ -475,14 +680,67 @@ function updateApps(query: string = "") {
 }
 
 function doAction(event: Event) {
+	const url = baseUrl;
+	const btn = event.target as HTMLButtonElement;
+	const action = btn.attributes.getNamedItem("data-action").value;
+	const id = btn.attributes.getNamedItem("data-id").value;
+	const data = {app: id};
+	if (action != "settings") {
+		popup.open("Warning", "Are you sure?", () => {
+			url.pathname = `/api/${action}`;
+			store.setState("loading", true);
+			fetch(url.href, {
+				method: "POST", // *GET, POST, PUT, DELETE, etc.
+				mode: "cors", // no-cors, cors, *same-origin
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(data), // body data type must match "Content-Type" header
+			})
+				.then(res => {
+					if (res.status == 200) {
+						updateApps();
+					}
+					store.setState("loading", false);
+				})
+				.catch(err => {
+					store.setState("loading", false);
+					console.log(err);
+				});
+		});
+	} else {
+		const apps: App[] = store.getState("deployedApps");
+		const app = apps.find(a => a.id == id);
+		store.setState("currentApp", app);
+		modal.open(app.name, settingsTemplate(app));
+	}
+}
+
+
+async function doModalForm(event: Event) {
 	popup.open("Warning", "Are you sure?", () => {
-		const url = baseUrl;
+		event.preventDefault();
 		const btn = event.target as HTMLButtonElement;
 		const action = btn.attributes.getNamedItem("data-action").value;
 		const id = btn.attributes.getNamedItem("data-id").value;
-		const data = {app: id};
-		url.pathname = `/api/${action}`;
+		const app = store.getState("currentApp");
+		const url = baseUrl;
+		const edits: Edits = {
+			"runner": (document.querySelector("#runnerSettings") as HTMLInputElement).value,
+			"hostname": (document.querySelector("#hostnameSettings") as HTMLInputElement).value,
+			"port": (document.querySelector("#portSettings") as HTMLInputElement).value,
+		};
+		let settings: Edits = {};
+		Object.keys(edits).forEach(key => {
+			if (edits[key] != String(app[key])) {
+				settings[key] = edits[key];
+			}
+		});
+		const data = {id: id, settings: settings};
+		url.pathname = "/api/" + action;
+		console.log(action);
 		store.setState("loading", true);
+		modal.close();
 		fetch(url.href, {
 			method: "POST", // *GET, POST, PUT, DELETE, etc.
 			mode: "cors", // no-cors, cors, *same-origin
@@ -491,15 +749,22 @@ function doAction(event: Event) {
 			},
 			body: JSON.stringify(data), // body data type must match "Content-Type" header
 		})
-			.then(res => {
+			.then(async res => {
+				console.log(res);
 				if (res.status == 200) {
 					updateApps();
+				} else if (res.status == 500) {
+					const response = await res.json();
+					setTimeout(()=>{
+						popup.open("Error", response.message);
+					}, 200)
+					console.log(response);
 				}
 				store.setState("loading", false);
 			})
 			.catch(err => {
-				store.setState("loading", false);
 				console.log(err);
+				store.setState("loading", false);
 			});
 	});
 }
@@ -521,7 +786,7 @@ function doForm(event: Event) {
 		url.pathname = "/api/deploy";
 		store.setState("loading", true);
 		// @ts-ignore
-		$("#modalDialog").modal("hide");
+		$("#deployDialog").modal("hide");
 		fetch(url.href, {
 			method: "POST", // *GET, POST, PUT, DELETE, etc.
 			mode: "cors", // no-cors, cors, *same-origin
@@ -533,7 +798,7 @@ function doForm(event: Event) {
 			.then(res => {
 				if (res.status == 200) {
 					// @ts-ignore
-					$("#modalDialog").modal("hide");
+					$("#deployDialog").modal("hide");
 					updateApps();
 				}
 				store.setState("loading", false);

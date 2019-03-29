@@ -29,16 +29,25 @@ body {
   padding-right: 10px;
 }
 
-#modalDialog .input-group-prepend label, #modalDialog .input-group-prepend span {
+#deployDialog .input-group-prepend label, #deployDialog .input-group-prepend span {
   width: 10vw;
 }
-#modalDialog .modal-dialog .modal-content .modal-footer button {
+#deployDialog .modal-dialog .modal-content .modal-footer button {
   width: 75px;
 }
 
+#modal-backdrop #modal .card-body form .input-group-prepend label, #modal-backdrop #modal .card-body form .input-group-prepend span {
+  width: 10vw;
+}
+
 @media screen and (max-width: 540px) {
-  #modalDialog .input-group-prepend label, #modalDialog .input-group-prepend span {
+  #deployDialog .input-group-prepend label, #deployDialog .input-group-prepend span {
     width: 25vw;
+  }
+
+  #modal .input-group-prepend label, #modal .input-group-prepend span {
+    width: 25vw !important;
+    font-size: 12px;
   }
 
   #appContainer .card .card-footer button i, #appContainer .card .card-footer button svg, #appContainer .card .card-footer button path {
