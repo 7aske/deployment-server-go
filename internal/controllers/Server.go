@@ -48,7 +48,7 @@ func NewServer() {
 		}
 	}()
 	go func() {
-		l.Log(fmt.Sprintf("starting router server on port %d", cfg.GetPort()))
+		l.Log(fmt.Sprintf("starting router server on port %d", cfg.GetRouterPort()))
 		err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.GetRouterPort()), routerMux)
 		if err != nil {
 			l.Log(fmt.Sprintf("error starting server on port %d", cfg.GetRouterPort()))
