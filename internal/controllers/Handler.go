@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"../config"
+	"../logger"
 	"../utils"
 	"encoding/json"
 	"fmt"
@@ -25,6 +26,7 @@ type Handler struct {
 	statusUnauthorized        []byte
 	statusNotFound            []byte
 	statusMethodNotAllowed    []byte
+	logger                    *logger.Logger
 }
 
 type DeployRequest struct {
@@ -48,6 +50,18 @@ type SettingsRequest struct {
 	Settings map[string]string `json:"settings"`
 }
 
+func NewHandler(cfg *config.Config, d *Deployer) Handler {
+	h := Handler{}
+	h.config = cfg
+	h.deployer = d
+	h.statusInternalServerError = []byte("( ͠° ͟ʖ ͡°) 500 INTERNAL SERVER ERROR")
+	h.statusNotFound = []byte("( ͡° ʖ̯ ͡°) 404 NOT FOUND")
+	h.statusUnauthorized = []byte("( ͠° ͟ʖ ͡°) 401 UNAUTHORIZED")
+	h.statusMethodNotAllowed = []byte("( ͠° ͟ʖ ͡°) 405 METHOD NOT ALLOWED")
+	h.statusOK = []byte("( ͡ᵔ ͜ʖ ͡ᵔ ) 200 OK")
+	h.logger = logger.NewLogger(logger.LOG_SERVER)
+	return h
+}
 func (s *SettingsRequest) Read(body *io.ReadCloser) {
 	jsonBytes, _ := ioutil.ReadAll(*body)
 	err := json.Unmarshal(jsonBytes, s)
@@ -74,10 +88,18 @@ func (h *Handler) SetDeployer(d *Deployer) {
 func (h *Handler) GetDeployer() *Deployer {
 	return h.deployer
 }
+func (h *Handler) SetLogger(l *logger.Logger) {
+	h.logger = l
+}
+
+func (h *Handler) GetLogger() *logger.Logger {
+	return h.logger
+}
 
 func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if cookie, err := r.Cookie("Authorization"); err != nil {
+		h.logger.Log("deploy - bad cookie " + r.RemoteAddr)
 		w.WriteHeader(http.StatusUnauthorized)
 		length, _ := w.Write(h.statusUnauthorized)
 		w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -96,9 +118,9 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 				}
 				app, err := h.GetDeployer().Deploy(repo, runner, hostname, port)
 				if err != nil {
-					fmt.Println(err)
-					w.WriteHeader(http.StatusForbidden)
-					response := ErrorResponse{Id: app.GetName()}
+					h.logger.Log(err.Error())
+					w.WriteHeader(http.StatusInternalServerError)
+					response := ErrorResponse{Id: utils.GetNameFromRepo(repo)}
 					if err.Error() == "exit status 128" {
 						response.Message = "invalid repo"
 					} else {
@@ -112,8 +134,8 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 				err = h.GetDeployer().Install(app)
 				app.Print()
 				if err != nil {
-					fmt.Println(err)
-					w.WriteHeader(http.StatusForbidden)
+					h.logger.Log(err.Error())
+					w.WriteHeader(http.StatusInternalServerError)
 					jsonResponse, _ := json.Marshal(ErrorResponse{Message: err.Error(), Id: app.GetName()})
 					length, _ := w.Write(jsonResponse)
 					w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -121,13 +143,14 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 				}
 				err = h.GetDeployer().Run(app)
 				if err != nil {
-					fmt.Println(err)
-					w.WriteHeader(http.StatusForbidden)
+					h.logger.Log(err.Error())
+					w.WriteHeader(http.StatusInternalServerError)
 					jsonResponse, _ := json.Marshal(ErrorResponse{Message: err.Error(), Id: app.GetName()})
 					length, _ := w.Write(jsonResponse)
 					w.Header().Set("Content-Length", strconv.Itoa(length))
 					return
 				}
+				h.logger.Log("deployed " + repo)
 				w.WriteHeader(http.StatusOK)
 				jsonResponse, _ := json.Marshal(SuccessResponse{Message: "deployed", App: h.GetDeployer().GetAppAsJSON(app)})
 				length, _ := w.Write(jsonResponse)
@@ -138,6 +161,7 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			}
 		} else {
+			h.logger.Log("deploy - bad token " + r.RemoteAddr)
 			w.WriteHeader(http.StatusUnauthorized)
 			length, _ := w.Write(h.statusUnauthorized)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -147,6 +171,7 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if cookie, err := r.Cookie("Authorization"); err != nil {
+		h.logger.Log("deploy - bad token " + r.RemoteAddr)
 		w.WriteHeader(http.StatusUnauthorized)
 		length, _ := w.Write(h.statusUnauthorized)
 		w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -160,29 +185,33 @@ func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 					app := NewAppFromJson(appJson)
 					err := h.GetDeployer().Update(app)
 					if err != nil {
-						fmt.Println(err)
+						h.logger.Log(err.Error())
 						w.WriteHeader(http.StatusInternalServerError)
 						jsonResponse, _ := json.Marshal(ErrorResponse{Message: "update failed", Id: name})
 						length, _ := w.Write(jsonResponse)
 						w.Header().Set("Content-Length", strconv.Itoa(length))
 						return
 					}
+					h.logger.Log("update - updated app " + name)
 					w.WriteHeader(http.StatusOK)
 					jsonResponse, _ := json.Marshal(SuccessResponse{Message: "updated", App: *appJson})
 					length, _ := w.Write(jsonResponse)
 					w.Header().Set("Content-Length", strconv.Itoa(length))
 				} else {
+					h.logger.Log("update - app not found " + name)
 					w.WriteHeader(http.StatusForbidden)
 					jsonResponse, _ := json.Marshal(ErrorResponse{Message: "app not found", Id: name})
 					length, _ := w.Write(jsonResponse)
 					w.Header().Set("Content-Length", strconv.Itoa(length))
 				}
 			} else {
+				h.logger.Log("update - method not allowed" + r.RemoteAddr)
 				w.WriteHeader(http.StatusMethodNotAllowed)
 				length, _ := w.Write(h.statusMethodNotAllowed)
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			}
 		} else {
+			h.logger.Log("update - bad token " + r.RemoteAddr)
 			w.WriteHeader(http.StatusUnauthorized)
 			length, _ := w.Write(h.statusUnauthorized)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -192,6 +221,7 @@ func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if cookie, err := r.Cookie("Authorization"); err != nil {
+		h.logger.Log("run - bad token " + r.RemoteAddr)
 		w.WriteHeader(http.StatusUnauthorized)
 		length, _ := w.Write(h.statusUnauthorized)
 		w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -204,6 +234,7 @@ func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
 				if appJson, ok := h.GetDeployer().GetAppD(name); ok {
 					app := NewAppFromJson(appJson)
 					if h.GetDeployer().IsAppRunning(app) {
+						h.logger.Log("run - app already running " + name)
 						w.WriteHeader(http.StatusNoContent)
 						jsonResponse, _ := json.Marshal(ErrorResponse{Message: "app already running", Id: app.GetName()})
 						length, _ := w.Write(jsonResponse)
@@ -211,25 +242,34 @@ func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
 					} else {
 						err := h.GetDeployer().Run(app)
 						if err != nil {
-							fmt.Println(err)
+							h.logger.Log(err.Error())
+							w.WriteHeader(http.StatusInternalServerError)
+							jsonResponse, _ := json.Marshal(ErrorResponse{Message: "unable to run", Id: name})
+							length, _ := w.Write(jsonResponse)
+							w.Header().Set("Content-Length", strconv.Itoa(length))
+							return
 						}
+						h.logger.Log("run - running app " + name)
 						w.WriteHeader(http.StatusOK)
 						jsonResponse, _ := json.Marshal(SuccessResponse{Message: "running", App: *appJson})
 						length, _ := w.Write(jsonResponse)
 						w.Header().Set("Content-Length", strconv.Itoa(length))
 					}
 				} else {
+					h.logger.Log("run - app not found " + name)
 					w.WriteHeader(http.StatusForbidden)
 					jsonResponse, _ := json.Marshal(ErrorResponse{Message: "app not found", Id: name})
 					length, _ := w.Write(jsonResponse)
 					w.Header().Set("Content-Length", strconv.Itoa(length))
 				}
 			} else {
+				h.logger.Log("run - method not allowed " + r.RemoteAddr)
 				w.WriteHeader(http.StatusMethodNotAllowed)
 				length, _ := w.Write(h.statusMethodNotAllowed)
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			}
 		} else {
+			h.logger.Log("run - bad token " + r.RemoteAddr)
 			w.WriteHeader(http.StatusUnauthorized)
 			length, _ := w.Write(h.statusUnauthorized)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -239,6 +279,7 @@ func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleFind(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if cookie, err := r.Cookie("Authorization"); err != nil {
+		h.logger.Log("find - bad token " + r.RemoteAddr)
 		w.WriteHeader(http.StatusUnauthorized)
 		length, _ := w.Write(h.statusUnauthorized)
 		w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -249,20 +290,24 @@ func (h *Handler) HandleFind(w http.ResponseWriter, r *http.Request) {
 				query := r.URL.Query().Get("app")
 				apps := h.GetDeployer().GetAppsAsJSON()
 				appsD := h.GetDeployer().GetDeployedApps()
-				jsonResponse := []byte{}
+				var jsonResponse []byte
 				if query == "" {
 					jsonResponse, _ = json.Marshal(&FindResponse{Running: &apps, Deployed: &appsD})
 				} else {
 					jsonResponse, _ = json.Marshal(&FindResponse{Running: queryApps(query, &apps), Deployed: queryApps(query, &appsD)})
 				}
+				h.logger.Log("find - querying apps")
+				w.WriteHeader(http.StatusOK)
 				length, _ := w.Write(jsonResponse)
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			} else {
+				h.logger.Log("find - method not allowed " + r.RemoteAddr)
 				w.WriteHeader(http.StatusMethodNotAllowed)
 				length, _ := w.Write(h.statusMethodNotAllowed)
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			}
 		} else {
+			h.logger.Log("find - bad token " + r.RemoteAddr)
 			w.WriteHeader(http.StatusUnauthorized)
 			length, _ := w.Write(h.statusUnauthorized)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -274,6 +319,7 @@ func (h *Handler) HandleFind(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleKill(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if cookie, err := r.Cookie("Authorization"); err != nil {
+		h.logger.Log("kill - bad token " + r.RemoteAddr)
 		w.WriteHeader(http.StatusUnauthorized)
 		length, _ := w.Write(h.statusUnauthorized)
 		w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -284,8 +330,18 @@ func (h *Handler) HandleKill(w http.ResponseWriter, r *http.Request) {
 				body := getJsonMap(&r.Body)
 				name := body["app"]
 				if app, ok := h.GetDeployer().GetApp(name); ok {
-					_ = h.GetDeployer().Kill(app)
+					err := h.GetDeployer().Kill(app)
+					if err != nil {
+						h.logger.Log(err.Error())
+						w.WriteHeader(http.StatusInternalServerError)
+						jsonResponse, _ := json.Marshal(ErrorResponse{Message: "unable to kill", Id: name})
+						length, _ := w.Write(jsonResponse)
+						w.Header().Set("Content-Length", strconv.Itoa(length))
+						return
+					}
+					h.logger.Log("kill - killed app " + name)
 					jsonResponse, _ := json.Marshal(SuccessResponse{Message: "killed", App: h.GetDeployer().GetAppAsJSON(app)})
+					w.WriteHeader(http.StatusOK)
 					length, _ := w.Write(jsonResponse)
 					w.Header().Set("Content-Length", strconv.Itoa(length))
 				} else {
@@ -295,11 +351,13 @@ func (h *Handler) HandleKill(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Length", strconv.Itoa(length))
 				}
 			} else {
+				h.logger.Log("kill - method not allowed " + r.RemoteAddr)
 				w.WriteHeader(http.StatusMethodNotAllowed)
 				length, _ := w.Write(h.statusMethodNotAllowed)
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			}
 		} else {
+			h.logger.Log("kill - bad token " + r.RemoteAddr)
 			w.WriteHeader(http.StatusUnauthorized)
 			length, _ := w.Write(h.statusUnauthorized)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -309,8 +367,8 @@ func (h *Handler) HandleKill(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) HandleRemove(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	if cookie, err := r.Cookie("Authorization");
-		err != nil {
+	if cookie, err := r.Cookie("Authorization"); err != nil {
+		h.logger.Log("remove - bad token " + r.RemoteAddr)
 		w.WriteHeader(http.StatusUnauthorized)
 		length, _ := w.Write(h.statusUnauthorized)
 		w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -324,22 +382,35 @@ func (h *Handler) HandleRemove(w http.ResponseWriter, r *http.Request) {
 					if app, ok := h.GetDeployer().GetApp(appJson.Id); ok {
 						_ = h.GetDeployer().Kill(app)
 					}
-					h.GetDeployer().Remove(appJson)
+					err := h.GetDeployer().Remove(appJson)
+					if err != nil {
+						h.logger.Log(err.Error())
+						jsonResponse, _ := json.Marshal(ErrorResponse{Message: "removed", Id: name})
+						w.WriteHeader(http.StatusInternalServerError)
+						length, _ := w.Write(jsonResponse)
+						w.Header().Set("Content-Length", strconv.Itoa(length))
+						return
+					}
+					h.logger.Log("remove - removed app " + name)
 					jsonResponse, _ := json.Marshal(SuccessResponse{Message: "removed", App: *appJson})
+					w.WriteHeader(http.StatusOK)
 					length, _ := w.Write(jsonResponse)
 					w.Header().Set("Content-Length", strconv.Itoa(length))
 				} else {
+					h.logger.Log("remove - app not found " + name)
 					w.WriteHeader(http.StatusInternalServerError)
 					jsonResponse, _ := json.Marshal(ErrorResponse{Message: "app not found", Id: name})
 					length, _ := w.Write(jsonResponse)
 					w.Header().Set("Content-Length", strconv.Itoa(length))
 				}
 			} else {
+				h.logger.Log("remove - method not allowed")
 				w.WriteHeader(http.StatusMethodNotAllowed)
 				length, _ := w.Write(h.statusMethodNotAllowed)
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			}
 		} else {
+			h.logger.Log("remove - bad token " + r.RemoteAddr)
 			w.WriteHeader(http.StatusUnauthorized)
 			length, _ := w.Write(h.statusUnauthorized)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -349,8 +420,8 @@ func (h *Handler) HandleRemove(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) HandleSettings(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	if cookie, err := r.Cookie("Authorization");
-		err != nil {
+	if cookie, err := r.Cookie("Authorization"); err != nil {
+		h.logger.Log("settings - bad token " + r.RemoteAddr)
 		w.WriteHeader(http.StatusUnauthorized)
 		length, _ := w.Write(h.statusUnauthorized)
 		w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -362,22 +433,26 @@ func (h *Handler) HandleSettings(w http.ResponseWriter, r *http.Request) {
 				req.Read(&r.Body)
 				err := h.GetDeployer().Settings(req.Id, req.Settings)
 				if err != nil {
+					h.logger.Log(err.Error())
 					w.WriteHeader(http.StatusInternalServerError)
 					jsonResponse, _ := json.Marshal(ErrorResponse{Message: err.Error(), Id: req.Id})
 					length, _ := w.Write(jsonResponse)
 					w.Header().Set("Content-Length", strconv.Itoa(length))
 				} else {
-					jsonResponse, _ := json.Marshal(SuccessResponse{Message: "updated", App: AppJSON{Id:req.Id}})
+					h.logger.Log("settings - updated app settings " + req.Id)
+					jsonResponse, _ := json.Marshal(SuccessResponse{Message: "updated", App: AppJSON{Id: req.Id}})
 					length, _ := w.Write(jsonResponse)
 					w.Header().Set("Content-Length", strconv.Itoa(length))
 				}
 
 			} else {
+				h.logger.Log("settings - method not allowed")
 				w.WriteHeader(http.StatusMethodNotAllowed)
 				length, _ := w.Write(h.statusMethodNotAllowed)
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			}
 		} else {
+			h.logger.Log("settings - bad token " + r.RemoteAddr)
 			w.WriteHeader(http.StatusUnauthorized)
 			length, _ := w.Write(h.statusUnauthorized)
 			w.Header().Set("Content-Length", strconv.Itoa(length))
@@ -385,8 +460,10 @@ func (h *Handler) HandleSettings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (h *Handler) HandleRoot(w http.ResponseWriter, r *http.Request) {
+	h.logger.Log(r.URL.Path)
 	if cookie, err := r.Cookie("Authorization"); err != nil {
-		http.Redirect(w, r, "/auth", 301)
+		h.logger.Log("root - redirecting bad token " + r.RemoteAddr)
+		http.Redirect(w, r, "/auth", http.StatusMovedPermanently)
 	} else {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
 		if h.verifyToken(token) {
@@ -420,7 +497,8 @@ func (h *Handler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Length", strconv.Itoa(length))
 			}
 		} else {
-			http.Redirect(w, r, "/auth", 301)
+			h.logger.Log("root - redirecting bad token " + r.RemoteAddr)
+			http.Redirect(w, r, "/auth", http.StatusMovedPermanently)
 		}
 	}
 }
@@ -432,16 +510,17 @@ func (h *Handler) HandleAuth(w http.ResponseWriter, r *http.Request) {
 		if h.verifyCredentials(user, pass) {
 			token := h.makeToken()
 			cookie := http.Cookie{Name: "Authorization", Value: fmt.Sprintf("Bearer %s", token), Path: "/", Expires: time.Now().Add(24 * time.Hour)}
+			h.logger.Log("auth - authorized " + r.RemoteAddr)
 			http.SetCookie(w, &cookie)
-			http.Redirect(w, r, "/", 301)
+			http.Redirect(w, r, "/", http.StatusMovedPermanently)
 		} else {
-			http.Redirect(w, r, "/auth", 301)
+			http.Redirect(w, r, "/auth", http.StatusMovedPermanently)
 		}
 	case http.MethodGet:
 		if cookie, err := r.Cookie("Authorization"); err == nil {
 			token := strings.Split(cookie.Value, "Bearer ")[1]
 			if h.verifyToken(token) {
-				http.Redirect(w, r, "/", 301)
+				http.Redirect(w, r, "/", http.StatusMovedPermanently)
 				break
 			}
 		}
@@ -487,19 +566,8 @@ func (h *Handler) verifyToken(tokenString string) bool {
 	return true
 }
 
-func NewHandler(cfg *config.Config, d *Deployer) Handler {
-	h := Handler{}
-	h.config = cfg
-	h.deployer = d
-	h.statusInternalServerError = []byte("( ͠° ͟ʖ ͡°) 500 INTERNAL SERVER ERROR")
-	h.statusNotFound = []byte("( ͡° ʖ̯ ͡°) 404 NOT FOUND")
-	h.statusUnauthorized = []byte("( ͠° ͟ʖ ͡°) 401 UNAUTHORIZED")
-	h.statusMethodNotAllowed = []byte("( ͠° ͟ʖ ͡°) 405 METHOD NOT ALLOWED")
-	h.statusOK = []byte("( ͡ᵔ ͜ʖ ͡ᵔ ) 200 OK")
-	return h
-}
 func queryApps(search string, apps *[]AppJSON) *[]AppJSON {
-	out := []AppJSON{}
+	var out []AppJSON
 	for _, a := range *apps {
 		if strings.Contains(a.Name, strings.ToLower(search)) || strings.Contains(a.Id, search) {
 			out = append(out, a)
@@ -517,7 +585,7 @@ func getJsonMap(body *io.ReadCloser) map[string]string {
 	return output
 }
 
-func unmarshalApp(reader *io.ReadCloser, app *AppJSON) {
-	body := getJsonMap(reader)
-	_ = json.Unmarshal([]byte(body["app"]), app)
-}
+//func unmarshalApp(reader *io.ReadCloser, app *AppJSON) {
+//	body := getJsonMap(reader)
+//	_ = json.Unmarshal([]byte(body["app"]), app)
+//}

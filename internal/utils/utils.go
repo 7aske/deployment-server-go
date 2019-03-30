@@ -105,8 +105,7 @@ func ContainsFile(q string, dir *[]os.FileInfo) bool {
 func PrintHelp() {
 	fmt.Println("usage: [...options] [...flags]")
 	fmt.Println()
-	fmt.Println("--client		enables client")
-	fmt.Println("--auth			enables authentication")
+	fmt.Println("-i		interactive shell access")
 }
 func Hash(str string) string {
 	h := sha256.New()

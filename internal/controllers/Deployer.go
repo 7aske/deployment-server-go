@@ -1,7 +1,9 @@
 package controllers
+
 // TODO: in-memory deployed apps
 import (
 	"../config"
+	"../logger"
 	"../utils"
 	"encoding/json"
 	"fmt"
@@ -22,6 +24,7 @@ type Deployer struct {
 	apps    []*App
 	appsD   []AppJSON
 	runners []string
+	logger  *logger.Logger
 }
 type AppsJSON struct {
 	Apps []AppJSON `json:"apps"`
@@ -30,9 +33,6 @@ type PackageJSON struct {
 	Main string `json:"main"`
 }
 
-//func (d *Deployer) LoadConfig() {
-//	d.config = &config.LoadConfig()
-//}
 func NewDeployer(cfg *config.Config) Deployer {
 	d := Deployer{}
 	d.config = cfg
@@ -42,12 +42,16 @@ func NewDeployer(cfg *config.Config) Deployer {
 	d.initAppsJson()
 	d.GetDeployedApps()
 	d.runners = []string{"node", "web", "python"}
-	//arr := []int{1,2,3}
-	//arr = append(arr[:1], arr[2:]...)
-	//fmt.Println(arr)
+	d.logger = logger.NewLogger(logger.LOG_DEPLOYER)
 	return d
 }
+func (d *Deployer) SetLogger(l *logger.Logger) {
+	d.logger = l
+}
 
+func (d *Deployer) GetLogger() *logger.Logger {
+	return d.logger
+}
 func (d *Deployer) GetApps() *[]*App {
 	return &d.apps
 }
@@ -141,7 +145,9 @@ func (d *Deployer) RemoveAppD(a *AppJSON) {
 
 func (d *Deployer) Deploy(repo string, runner string, hostname string, port int) (*App, error) {
 	if utils.Contains(runner, &d.runners) == -1 {
-		return &App{}, errors.New("unknown runner")
+		err := errors.New("deploy - unknown runner " + runner)
+		d.logger.Log(err.Error())
+		return &App{}, err
 	}
 	name := utils.GetNameFromRepo(repo)
 	app := NewApp(repo, name, runner)
@@ -150,36 +156,41 @@ func (d *Deployer) Deploy(repo string, runner string, hostname string, port int)
 		app.SetPort(port)
 	}
 	app.SetHostname(hostname)
-	//fmt.Println(app.GetRoot())
-	//fmt.Println(app.GetRunner())
 	if _, ok := d.GetAppD(repo); !ok {
 		git := exec.Command("git", "-C", d.GetConfig().GetAppsRoot(), "clone", repo)
 		git.Stdout = os.Stdout
 		git.Stderr = os.Stderr
 		err := git.Run()
 		if err != nil {
-			fmt.Println(err)
+			d.logger.Log(err.Error())
 			return app, err
 		}
 		app.SetId(shortid.MustGenerate())
 		app.SetDeployed(time.Now())
 		d.SaveAppToJson(d.GetAppAsJSON(app))
+		d.logger.Log("deploy - deployed app " + name)
 		return app, nil
 	} else {
-		return &App{name: name, repo: repo, runner: runner}, errors.New("app already deployed")
+		err := errors.New("deploy - app already deployed " + name)
+		d.logger.Log(err.Error())
+		return &App{name: name, repo: repo, runner: runner}, err
 	}
 
 }
 func (d *Deployer) Update(a *App) error {
 	if d.IsAppRunning(a) {
-		_ = d.Kill(a)
+		err := d.Kill(a)
+		if err != nil {
+			d.logger.Log(err.Error())
+		}
+		d.logger.Log("update - killing running app " + a.GetName())
 	}
 	git := exec.Command("git", "-C", a.GetRoot(), "pull")
 	git.Stdout = os.Stdout
 	git.Stderr = os.Stderr
 	err := git.Run()
 	if err != nil {
-		fmt.Println(err)
+		d.logger.Log(err.Error())
 		return err
 	}
 	a.SetLastUpdated(time.Now())
@@ -189,11 +200,14 @@ func (d *Deployer) Update(a *App) error {
 	//	return err
 	//}
 	d.SaveAppToJson(d.GetAppAsJSON(a))
+	d.logger.Log("update - updated app " + a.GetName())
 	return nil
 }
 func (d *Deployer) Install(a *App) error {
 	if utils.Contains(a.GetRunner(), &d.runners) == -1 {
-		return errors.New("unknown runner")
+		err := errors.New("install - unknown runner " + a.GetRunner())
+		d.logger.Log(err.Error())
+		return err
 	}
 	switch a.GetRunner() {
 	case "node":
@@ -203,9 +217,10 @@ func (d *Deployer) Install(a *App) error {
 		npm.Stderr = os.Stderr
 		err := npm.Run()
 		if err != nil {
-			fmt.Println(err)
+			d.logger.Log(err.Error())
 			return err
 		} else {
+			d.logger.Log("install - npm install finished " + a.GetName())
 			return nil
 		}
 	case "web":
@@ -215,20 +230,25 @@ func (d *Deployer) Install(a *App) error {
 		npm.Stderr = os.Stderr
 		err := npm.Run()
 		if err != nil {
-			fmt.Println(err)
+			d.logger.Log(err.Error())
 			return err
 		} else {
+			d.logger.Log("install - npm install finished " + a.GetName())
 			return nil
 		}
 	default:
-		return errors.New("unsupported runner")
+		err := errors.New("install - unknown runner " + a.GetRunner())
+		d.logger.Log(err.Error())
+		return err
 	}
 
 }
 
 func (d *Deployer) Run(a *App) error {
 	if utils.Contains(a.GetRunner(), &d.runners) == -1 {
-		return errors.New("unknown runner")
+		err := errors.New("run - unknown runner " + a.GetRunner())
+		d.logger.Log(err.Error())
+		return err
 	}
 	switch a.GetRunner() {
 	case "node":
@@ -238,40 +258,63 @@ func (d *Deployer) Run(a *App) error {
 	case "python":
 		return d.runPython(a)
 	default:
-		return errors.New("unsupported runner")
+		err := errors.New("run - unknown runner " + a.GetRunner())
+		d.logger.Log(err.Error())
+		return err
 	}
 
 }
 func (d *Deployer) Kill(app *App) error {
 	err := app.GetProcess().Kill()
 	if err != nil {
-		fmt.Println(err)
+		d.logger.Log(err.Error())
+		return err
+	}
+	_, err = app.GetProcess().Wait()
+	if err != nil {
+		d.logger.Log(err.Error())
 		return err
 	}
 	jApp := d.GetAppAsJSON(app)
-	jApp.Pid = 0
+	jApp.Pid = -1
 	d.SaveAppToJson(jApp)
 	d.RemoveApp(app)
+	d.logger.Log("kill - killed app " + app.GetName())
 	return nil
 }
-func (d *Deployer) Remove(app *AppJSON) {
+func (d *Deployer) Remove(app *AppJSON) error {
 	a := NewAppFromJson(app)
 	if !d.IsAppRunning(a) {
 		if strings.HasPrefix(app.Root, path.Join(d.GetConfig().GetAppsRoot())) {
 			err := os.RemoveAll(app.Root)
 			if err != nil {
-				fmt.Println(err)
+				d.logger.Log(err.Error())
+				return err
 			}
 			d.RemoveAppFromJson(*app)
+			d.logger.Log("remove - removed app " + app.Name)
+			return nil
+		} else {
+			err := errors.New("remove - invalid path " + app.Root)
+			d.logger.Log(err.Error())
+			return err
 		}
+	} else {
+		err := errors.New("remove - app is running " + app.Name)
+		d.logger.Log(err.Error())
+		return err
 	}
 }
 func (d *Deployer) Settings(id string, settings map[string]string) error {
 	if app, ok := d.GetApp(id); ok {
 		if d.IsAppRunning(app) {
-			return errors.New("app is running")
+			err := errors.New("settings - app is running")
+			d.logger.Log(err.Error())
+			return err
 		}
-		return errors.New("app in memory")
+		err := errors.New("settings - app in memory")
+		d.logger.Log(err.Error())
+		return err
 	}
 	if appJson, ok := d.GetAppD(id); ok {
 		changed := false
@@ -280,10 +323,13 @@ func (d *Deployer) Settings(id string, settings map[string]string) error {
 			case "port":
 				port, err := strconv.Atoi(value)
 				if err != nil {
+					d.logger.Log(err.Error())
 					return err
 				}
 				if d.isPortUsed(port) {
-					return errors.New("port in use")
+					err := errors.New("port in use")
+					d.logger.Log(err.Error())
+					return err
 				}
 				appJson.Port = port
 				changed = true
@@ -298,11 +344,14 @@ func (d *Deployer) Settings(id string, settings map[string]string) error {
 			}
 		}
 		if changed {
+			d.logger.Log("settings - updated app settings " + appJson.Name)
 			d.SaveAppToJson(*appJson)
 		}
 		return nil
 	} else {
-		return errors.New("app not found")
+		err := errors.New("app not found")
+		d.logger.Log(err.Error())
+		return err
 	}
 }
 
@@ -331,7 +380,11 @@ func (d *Deployer) SetConfig(c *config.Config) {
 func (d *Deployer) runNode(a *App) error {
 	packageJSONFile, _ := ioutil.ReadFile(path.Join(a.GetRoot(), "package.json"))
 	packageJson := PackageJSON{}
-	_ = json.Unmarshal(packageJSONFile, &packageJson)
+	err := json.Unmarshal(packageJSONFile, &packageJson)
+	if err != nil {
+		d.logger.Log(err.Error())
+		return err
+	}
 	node := exec.Command("node", path.Join(a.GetRoot(), packageJson.Main))
 	node.Dir = a.GetRoot()
 	port := a.GetPort()
@@ -342,9 +395,9 @@ func (d *Deployer) runNode(a *App) error {
 	node.Env = append(node.Env, fmt.Sprintf("PORT=%d", port))
 	node.Stdout = os.Stdout
 	node.Stderr = os.Stderr
-	err := node.Start()
+	err = node.Start()
 	if err != nil {
-		fmt.Println(err)
+		d.logger.Log(err.Error())
 		return err
 	}
 	a.SetLastRun(time.Now())
@@ -352,7 +405,7 @@ func (d *Deployer) runNode(a *App) error {
 	a.SetProcess(node.Process)
 	d.AddApp(a)
 	d.SaveAppToJson(d.GetAppAsJSON(a))
-	fmt.Printf("starting server with pid - %d on port %d\n", a.GetPid(), a.GetPort())
+	d.logger.Log(fmt.Sprintf("run - starting %s server with pid - %d on port %d", a.GetRunner(), a.GetPid(), a.GetPort()))
 	return nil
 }
 func (d *Deployer) runWeb(a *App) error {
@@ -376,7 +429,7 @@ func (d *Deployer) runWeb(a *App) error {
 	a.SetProcess(node.Process)
 	d.AddApp(a)
 	d.SaveAppToJson(d.GetAppAsJSON(a))
-	fmt.Printf("starting server with pid - %d on port %d\n", a.GetPid(), a.GetPort())
+	d.logger.Log(fmt.Sprintf("run - starting %s server with pid - %d on port %d", a.GetRunner(), a.GetPid(), a.GetPort()))
 	return nil
 }
 func (d *Deployer) runPython(a *App) error {
@@ -392,7 +445,7 @@ func (d *Deployer) runPython(a *App) error {
 	python.Stderr = os.Stderr
 	err := python.Start()
 	if err != nil {
-		fmt.Println(err)
+		d.logger.Log(err.Error())
 		return err
 	}
 	a.SetLastRun(time.Now())
@@ -400,7 +453,7 @@ func (d *Deployer) runPython(a *App) error {
 	a.SetProcess(python.Process)
 	d.AddApp(a)
 	d.SaveAppToJson(d.GetAppAsJSON(a))
-	fmt.Printf("starting server with pid - %d on port %d\n", a.GetPid(), a.GetPort())
+	d.logger.Log(fmt.Sprintf("run - starting %s server with pid - %d on port %d", a.GetRunner(), a.GetPid(), a.GetPort()))
 	return nil
 }
 func (d *Deployer) runPythonFlask() {
@@ -434,7 +487,7 @@ func (d *Deployer) RemoveAppFromJson(app AppJSON) {
 func (d *Deployer) SaveAppToJson(app AppJSON) {
 	pth := path.Join(d.GetConfig().GetAppsRoot(), "apps.json")
 	appsJson := d.GetDeployedApps()
-	app.Pid = 0
+	app.Pid = -1
 	app.Uptime = ""
 	if pos := d.ContainsAppJSON(&appsJson, &app); pos == -1 {
 		appsJson = append(appsJson, app)

@@ -2,16 +2,19 @@ package controllers
 
 import (
 	"../config"
+	"../logger"
 	"../utils"
 	"bufio"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
 	"time"
 )
 
 func NewServer() {
+	l := logger.NewLogger(logger.LOG_SERVER)
 	cfg := config.LoadConfig()
 	deployer := NewDeployer(cfg)
 	handler := NewHandler(cfg, &deployer)
@@ -22,7 +25,10 @@ func NewServer() {
 	devMux.HandleFunc("/api/deploy", func(writer http.ResponseWriter, request *http.Request) {
 		handler.HandleDeploy(writer, request)
 		routerHandler.UpdateHosts()
-		fmt.Println(*routerHandler.GetHosts())
+		l.Log("updating router hosts")
+		for key, value := range *routerHandler.GetHosts() {
+			l.Log(fmt.Sprintf("%s %s", key, value))
+		}
 	})
 	devMux.HandleFunc("/api/update", handler.HandleUpdate)
 	devMux.HandleFunc("/api/run", handler.HandleRun)
@@ -34,17 +40,33 @@ func NewServer() {
 	routerMux := http.NewServeMux()
 	routerMux.HandleFunc("/", routerHandler.HandleRoot)
 	go func() {
-		fmt.Printf("starting dev server on port %d\n", cfg.GetPort())
+		l.Log(fmt.Sprintf("starting dev    server on port %d", cfg.GetPort()))
 		err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.GetPort()), devMux)
 		if err != nil {
+			l.Log(fmt.Sprintf("error starting server on port %d", cfg.GetPort()))
 			panic(fmt.Sprintf("error starting server on port %d", cfg.GetPort()))
 		}
 	}()
 	go func() {
-		fmt.Printf("starting router server on port %d\n", cfg.GetRouterPort())
+		l.Log(fmt.Sprintf("starting router server on port %d", cfg.GetPort()))
 		err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.GetRouterPort()), routerMux)
 		if err != nil {
+			l.Log(fmt.Sprintf("error starting server on port %d", cfg.GetRouterPort()))
 			panic(fmt.Sprintf("error starting server on port %d", cfg.GetRouterPort()))
+		}
+	}()
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for sig := range c {
+			deployer.GetLogger().Log("server killed with sig " + sig.String())
+			for _, app := range *deployer.GetApps() {
+				err := deployer.Kill(app)
+				if err != nil {
+					deployer.GetLogger().Log(err.Error())
+				}
+			}
+			os.Exit(0)
 		}
 	}()
 	if utils.Contains("-i", &os.Args) != -1 {

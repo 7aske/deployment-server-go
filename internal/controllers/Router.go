@@ -2,10 +2,10 @@ package controllers
 
 import (
 	"../config"
+	"../logger"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-//	"net"
 	"net/http"
 	"path"
 	"strconv"
@@ -20,6 +20,7 @@ type RouterHandler struct {
 	statusNotFound            []byte
 	statusMethodNotAllowed    []byte
 	hosts                     map[string]string
+	logger                    *logger.Logger
 }
 
 func NewRouterHandler(d *Deployer, c *config.Config) *RouterHandler {
@@ -27,6 +28,7 @@ func NewRouterHandler(d *Deployer, c *config.Config) *RouterHandler {
 	rh.deployer = d
 	rh.config = c
 	rh.hosts = map[string]string{}
+	rh.logger = logger.NewLogger(logger.LOG_SERVER)
 	rh.statusInternalServerError = []byte("( ͠° ͟ʖ ͡°) 500 INTERNAL SERVER ERROR")
 	rh.statusNotFound = []byte("( ͡° ʖ̯ ͡°) 404 NOT FOUND")
 	rh.statusUnauthorized = []byte("( ͠° ͟ʖ ͡°) 401 UNAUTHORIZED")
@@ -37,6 +39,7 @@ func NewRouterHandler(d *Deployer, c *config.Config) *RouterHandler {
 }
 
 func (rh *RouterHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
+	rh.logger.Log(fmt.Sprintf("router - %s %s",r.URL.Path, r.RemoteAddr,))
 	protocol := "http://"
 	if r.URL.Scheme == "https" {
 		protocol = "https://"
@@ -48,7 +51,7 @@ func (rh *RouterHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 	} else {
 		url = protocol + host + ":" + rh.hosts[host]
 	}
-	if url == protocol + host + ":" {
+	if url == protocol+host+":" {
 		w.WriteHeader(http.StatusNotFound)
 		length, _ := w.Write(rh.statusNotFound)
 		w.Header().Set("Content-Length", strconv.Itoa(length))

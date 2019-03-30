@@ -594,7 +594,7 @@ function appTemplate(app: App, running: boolean): string {
                             <span>Runner:</span><span>${getRunnerIcon(app.runner)}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
-                            <span>Pid:</span><span>${app.pid == 0 ? "offline" : app.pid}</span>
+                            <span>Pid:</span><span>${app.pid == -1 ? "offline" : app.pid}</span>
                         </li>
                     </ul>
                 </div>

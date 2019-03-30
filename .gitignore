@@ -3,3 +3,4 @@ apps
 .idea
 client/node_modules
 *.cfg
+*.log
