@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path"
 	"strconv"
+	"strings"
 )
 
 type RouterHandler struct {
@@ -39,14 +40,14 @@ func NewRouterHandler(d *Deployer, c *config.Config) *RouterHandler {
 }
 
 func (rh *RouterHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
-	rh.logger.Log(fmt.Sprintf("router - %s %s",r.URL.Path, r.RemoteAddr,))
+	rh.logger.Log(fmt.Sprintf("router - %s %s", r.URL.Path, r.RemoteAddr, ))
 	protocol := "http://"
 	if r.URL.Scheme == "https" {
 		protocol = "https://"
 	}
 	host := r.Host
 	url := ""
-	if host == rh.config.GetHostname() {
+	if host == rh.config.GetHostname() || strings.HasPrefix(host, "dev.") {
 		url = protocol + host + ":" + strconv.Itoa(rh.config.GetPort())
 	} else {
 		url = protocol + host + ":" + rh.hosts[host]
