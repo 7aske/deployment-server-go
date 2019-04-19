@@ -2,5 +2,6 @@ bin
 apps
 .idea
 client/node_modules
+rootfs/
 *.cfg
 *.log
