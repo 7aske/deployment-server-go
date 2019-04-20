@@ -30,15 +30,24 @@ func (c *Config) Write() {
 	cFile, err := ini.Load(cFilePath)
 	if err != nil {
 		fp, _ := os.Create(cFilePath)
-		_, _ = fp.WriteString("; auto-generated default config")
+		_, _ = fp.Write([]byte{})
 		fp.Close()
 		cFile, err = ini.Load(cFilePath)
 		if err != nil {
 			log.Fatal("unable to open ", cFilePath)
 		}
+		_ = cFile.NewSections("dev", "router", "auth", "deployer")
+		cFile.Section("dev").Key("appsPort").Comment = "port for dev server and apps"
+		cFile.Section("dev").Key("port").Comment = "should not be the same"
+		cFile.Section("router").Key("port").Comment = "router port"
+		cFile.Section("auth").Key("secret").Comment = "hash secret"
+		cFile.Section("auth").Key("user").Comment = "username and password required to log to dev server"
+		cFile.Section("deployer").Key("root").Comment = "location of where the app repos are stored relative to app root"
+		cFile.Section("deployer").Key("server").Comment = "location of nodejs server script that runs 'web' apps"
+		cFile.Section("deployer").Key("hostname").Comment = "default hostname used for parsing subdomains, ignored if on local"
 	}
-	cFile.Section("dev").Key("port").SetValue(strconv.Itoa(c.port))
 	cFile.Section("dev").Key("appsPort").SetValue(strconv.Itoa(c.appsPort))
+	cFile.Section("dev").Key("port").SetValue(strconv.Itoa(c.port))
 
 	cFile.Section("router").Key("port").SetValue(strconv.Itoa(c.routerPort))
 
@@ -58,11 +67,6 @@ func (c *Config) Write() {
 
 func (c *Config) Read() {
 	cwd, _ := os.Getwd()
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("recovered ", r)
-		}
-	}()
 	cFilePath := path.Join(cwd, "config", "server.cfg")
 	cFile, err := ini.Load(cFilePath)
 	if err != nil {
