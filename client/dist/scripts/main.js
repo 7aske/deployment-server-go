@@ -53,7 +53,7 @@ var PopupDialog = /** @class */ (function () {
     function PopupDialog(store) {
         this.store = store;
         this.initStates();
-        this.initStyleSheet();
+        PopupDialog.initStyleSheet();
         this.backdrop = initBackdrop("popup-backdrop");
         this.popup = null;
         this.confirmBtn = null;
@@ -109,13 +109,12 @@ var PopupDialog = /** @class */ (function () {
         }, 100);
     };
     PopupDialog.prototype.createPopup = function (title, body) {
-        var html = "<div id=\"popup\" class=\"card\"><div class=\"card-header\"><h3 class=\"card-title mb-0\">" + title + "</h3>\n\t\t\t\t\t\t</div><div class=\"card-body\">" + body + "</div>\n\t\t\t\t\t\t<div class=\"card-footer\">\n\t\t\t\t\t\t\t<button class=\"btn btn-danger\" id=\"popupClose\"><i class=\"fas fa-times\"></i></button>\n\t\t\t\t\t\t\t<button class=\"btn btn-success\" id=\"popupConfirm\"><i class=\"fas fa-check\"></i></button>\n\t\t\t\t\t\t</div></div>";
-        this.backdrop.innerHTML += html;
+        this.backdrop.innerHTML = "<div id=\"popup\" class=\"card\"><div class=\"card-header\"><h3 class=\"card-title mb-0\">" + title + "</h3>\n\t\t\t\t\t\t</div><div class=\"card-body\">" + body + "</div>\n\t\t\t\t\t\t<div class=\"card-footer\">\n\t\t\t\t\t\t\t<button class=\"btn btn-danger\" id=\"popupClose\"><i class=\"fas fa-times\"></i></button>\n\t\t\t\t\t\t\t<button class=\"btn btn-success\" id=\"popupConfirm\"><i class=\"fas fa-check\"></i></button>\n\t\t\t\t\t\t</div></div>";
         this.popup = document.querySelector("#popup");
         this.confirmBtn = document.querySelector("#popupConfirm");
         this.closeBtn = document.querySelector("#popupClose");
     };
-    PopupDialog.prototype.initStyleSheet = function () {
+    PopupDialog.initStyleSheet = function () {
         var rule0 = "#popup-backdrop {\n\t\t\t\ttransition: 100ms all;\n\t\t\t\tvisibility: hidden;\n\t\t\t\tposition: absolute;\n\t\t\t\ttop:0;\n\t\t\t\tleft:0;\n\t\t\t\theight: 100vh;\n\t\t\t\twidth: 100vw;\n\t\t\t\topacity: 1;\n\t\t\t\tbackground-color: rgba(0, 0, 0, 0.4);\n\t\t\t\tz-index: 2000;}";
         var rule1 = "#popup-backdrop #popup {\n\t\t\t\t-webkit-transition: 200ms -webkit-transform;\n\t\t\t\ttransition: 200ms -webkit-transform;\n\t\t\t\ttransition: 200ms transform;\n\t\t\t\ttransition: 200ms transform, 200ms -webkit-transform;\n\t\t\t\tmax-width: 600px;\n\t\t\t\tmax-height: 300px;\n\t\t\t\tmargin: 20vh auto;}";
         var rule2 = "#popup-backdrop #popup .card-body {\n\t\t\t\tfont-size: 1.5rem;\n\t\t\t\toverflow-y: auto;}";
@@ -136,7 +135,7 @@ var PopupDialog = /** @class */ (function () {
 var Modal = /** @class */ (function () {
     function Modal(store) {
         this.store = store;
-        this.initStyleSheets();
+        Modal.initStyleSheets();
         this.initStates();
         this.modal = document.createElement("section");
         this.backdrop = initBackdrop("modal-backdrop");
@@ -197,7 +196,7 @@ var Modal = /** @class */ (function () {
         if (!this.store.hasState("isModalUp"))
             this.store.registerState("isModalUp", false);
     };
-    Modal.prototype.initStyleSheets = function () {
+    Modal.initStyleSheets = function () {
         var rule0 = "#modal-backdrop {\n\t\t\ttransition: 100ms all;\n\t\t\tvisibility: hidden;\n\t\t\tposition: absolute;\n\t\t\ttop: 0;\n\t\t\tleft:0;\n\t\t\theight: 100vh;\n\t\t\twidth: 100vw;\n\t\t\topacity: 1;\n\t\t\tbackground-color: rgba(0, 0, 0, 0.4);\n\t\t\tz-index: 1500;\n\t\t\tpadding: 20px;\n\n\t\t}";
         var rule1 = "#modal-backdrop #modal {\n\t\t\t-webkit-transition: 200ms -webkit-transform;\n\t\t\ttransition: 200ms -webkit-transform;\n\t\t\ttransition: 200ms transform;\n\t\t\ttransition: 200ms transform, 200ms -webkit-transform;\n\t\t\tmax-width: 800px;\n\t\t\tmin-height: 400px;\n\t\t\tmargin: auto;\t\t\t\n\t\t}";
         addStyleSheet([rule0, rule1]);
@@ -252,12 +251,7 @@ var Store = /** @class */ (function () {
         }
     };
     Store.prototype.hasState = function (state) {
-        if (Object.keys(this.state).indexOf(state) == -1) {
-            return false;
-        }
-        else {
-            return true;
-        }
+        return Object.keys(this.state).indexOf(state) != -1;
     };
     Store.prototype.subscribe = function (name, actions) {
         if (Object.keys(this._state).indexOf(name) == -1) {
@@ -289,14 +283,15 @@ var initialState = {
     deployedApps: [],
     currentApp: null,
 };
+var token = document.cookie.split("; ").filter(function (e) { return e.startsWith("Authorization"); })[0].split("Bearer ")[1].replace("\"", " ");
+// @ts-ignore
+var tokenData = jwt_decode(token);
+console.log(tokenData);
 var store = new Store(initialState);
 var popup = new PopupDialog(store);
 store.subscribe("isModalUp", [updateModal]);
 store.subscribe("loading", [toggleLoader]);
 var baseUrl = new URL(window.location.protocol + "//" + window.location.hostname + ":" + window.location.port);
-var token = document.cookie.split("; ").filter(function (e) { return e.startsWith("Authorization"); })[0].split("Bearer ")[1].replace("\"", " ");
-// @ts-ignore
-var tokenData = jwt_decode(token);
 var modal = new Modal(store);
 var appContainer = document.querySelector("#appContainer");
 var deployDialog = document.querySelector("#deployDialog");
@@ -312,11 +307,11 @@ searchInp.addEventListener("keydown", function (e) {
     updateApps(searchInp.value);
 });
 var searchBtn = document.querySelector("#searchBtn");
-searchBtn.addEventListener("click", function (e) {
+searchBtn.addEventListener("click", function () {
     updateApps(searchInp.value);
 });
 var deployBtn = document.querySelector("#deployBtn");
-deployBtn.addEventListener("click", function (e) {
+deployBtn.addEventListener("click", function () {
 });
 $("#deployDialog")
     .on("shown.bs.modal", function () { return store.setState("isModalUp", true); })
@@ -328,9 +323,11 @@ document.addEventListener("keydown", function (e) {
     switch (e.key) {
         case "Enter":
             if (store.getState("isPopUp")) {
+                e.preventDefault();
                 popup.confirm();
             }
             else if (store.getState("isModalUp")) {
+                e.preventDefault();
                 deployDialogConfirm.click();
             }
             else if (searchInp == document.activeElement) {

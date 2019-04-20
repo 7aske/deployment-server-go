@@ -1,4 +1,4 @@
-import set = Reflect.set;
+
 
 interface App {
 	id: string;
@@ -95,7 +95,7 @@ class PopupDialog {
 	constructor(store: Store) {
 		this.store = store;
 		this.initStates();
-		this.initStyleSheet();
+		PopupDialog.initStyleSheet();
 		this.backdrop = initBackdrop("popup-backdrop");
 		this.popup = null;
 		this.confirmBtn = null;
@@ -154,19 +154,18 @@ class PopupDialog {
 	}
 
 	private createPopup(title: string, body: string) {
-		const html = `<div id="popup" class="card"><div class="card-header"><h3 class="card-title mb-0">${title}</h3>
+		this.backdrop.innerHTML = `<div id="popup" class="card"><div class="card-header"><h3 class="card-title mb-0">${title}</h3>
 						</div><div class="card-body">${body}</div>
 						<div class="card-footer">
 							<button class="btn btn-danger" id="popupClose"><i class="fas fa-times"></i></button>
 							<button class="btn btn-success" id="popupConfirm"><i class="fas fa-check"></i></button>
 						</div></div>`;
-		this.backdrop.innerHTML += html;
 		this.popup = document.querySelector("#popup");
 		this.confirmBtn = document.querySelector("#popupConfirm");
 		this.closeBtn = document.querySelector("#popupClose");
 	}
 
-	private initStyleSheet() {
+	private static initStyleSheet() {
 		const rule0 = `#popup-backdrop {
 				transition: 100ms all;
 				visibility: hidden;
@@ -219,7 +218,7 @@ export class Modal {
 
 	constructor(store: Store) {
 		this.store = store;
-		this.initStyleSheets();
+		Modal.initStyleSheets();
 		this.initStates();
 		this.modal = document.createElement("section");
 		this.backdrop = initBackdrop("modal-backdrop");
@@ -289,7 +288,7 @@ export class Modal {
 			this.store.registerState("isModalUp", false);
 	}
 
-	private initStyleSheets() {
+	private static initStyleSheets() {
 		const rule0 = `#modal-backdrop {
 			transition: 100ms all;
 			visibility: hidden;
@@ -367,11 +366,7 @@ class Store implements DataStore {
 	}
 
 	public hasState(state: string): boolean {
-		if (Object.keys(this.state).indexOf(state) == -1) {
-			return false;
-		} else {
-			return true;
-		}
+		return Object.keys(this.state).indexOf(state) != -1;
 	}
 
 	public subscribe(name: DataStoreKeys, actions: Function[]) {
@@ -405,14 +400,18 @@ const initialState: State = {
 	currentApp: null,
 };
 
+const token = document.cookie.split("; ").filter(e => e.startsWith("Authorization"))[0].split("Bearer ")[1].replace("\"", " ");
+// @ts-ignore
+let tokenData = jwt_decode(token);
+console.log(tokenData);
+
+
 const store = new Store(initialState);
 const popup = new PopupDialog(store);
 store.subscribe("isModalUp", [updateModal]);
 store.subscribe("loading", [toggleLoader]);
 const baseUrl = new URL(window.location.protocol + "//" + window.location.hostname + ":" + window.location.port);
-const token = document.cookie.split("; ").filter(e => e.startsWith("Authorization"))[0].split("Bearer ")[1].replace("\"", " ");
-// @ts-ignore
-let tokenData = jwt_decode(token);
+
 const modal = new Modal(store);
 const appContainer = document.querySelector("#appContainer");
 const deployDialog = document.querySelector("#deployDialog");
@@ -428,11 +427,11 @@ searchInp.addEventListener("keydown", e => {
 	updateApps(searchInp.value);
 });
 const searchBtn = document.querySelector("#searchBtn");
-searchBtn.addEventListener("click", e => {
+searchBtn.addEventListener("click", () => {
 	updateApps(searchInp.value);
 });
 const deployBtn = document.querySelector("#deployBtn");
-deployBtn.addEventListener("click", e => {
+deployBtn.addEventListener("click", () => {
 });
 $("#deployDialog")
 	.on("shown.bs.modal", () => store.setState("isModalUp", true))
@@ -446,10 +445,13 @@ document.addEventListener("keydown", e => {
 	switch (e.key) {
 		case "Enter":
 			if (store.getState("isPopUp")) {
+				e.preventDefault();
 				popup.confirm();
 			} else if (store.getState("isModalUp")) {
+				e.preventDefault();
 				deployDialogConfirm.click();
-			} else if (searchInp == document.activeElement) {
+			} else
+			if (searchInp == document.activeElement) {
 				updateApps(searchInp.value);
 			}
 			break;
@@ -757,7 +759,7 @@ async function doModalForm(event: Event) {
 					const response = await res.json();
 					setTimeout(()=>{
 						popup.open("Error", response.message);
-					}, 200)
+					}, 200);
 					console.log(response);
 				}
 				store.setState("loading", false);
