@@ -1,5 +1,3 @@
-
-
 interface App {
 	id: string;
 	repo: string;
@@ -450,8 +448,7 @@ document.addEventListener("keydown", e => {
 			} else if (store.getState("isModalUp")) {
 				e.preventDefault();
 				deployDialogConfirm.click();
-			} else
-			if (searchInp == document.activeElement) {
+			} else if (searchInp == document.activeElement) {
 				updateApps(searchInp.value);
 			}
 			break;
@@ -699,9 +696,14 @@ function doAction(event: Event) {
 				},
 				body: JSON.stringify(data), // body data type must match "Content-Type" header
 			})
-				.then(res => {
+				.then(async res => {
 					if (res.status == 200) {
 						updateApps();
+					} else {
+						const response = await res.json();
+						setTimeout(() => {
+							popup.open("Error", response.message.toString().toLocaleUpperCase(),);
+						}, 200);
 					}
 					store.setState("loading", false);
 				})
@@ -755,16 +757,15 @@ async function doModalForm(event: Event) {
 				console.log(res);
 				if (res.status == 200) {
 					updateApps();
-				} else if (res.status == 500) {
+				} else {
 					const response = await res.json();
-					setTimeout(()=>{
-						popup.open("Error", response.message);
+					setTimeout(() => {
+						popup.open("Error", response.message.toString().toLocaleUpperCase());
 					}, 200);
-					console.log(response);
 				}
 				store.setState("loading", false);
 			})
-			.catch(err => {
+			.catch(async err => {
 				console.log(err);
 				store.setState("loading", false);
 			});
@@ -797,11 +798,16 @@ function doForm(event: Event) {
 			},
 			body: JSON.stringify(data), // body data type must match "Content-Type" header
 		})
-			.then(res => {
+			.then(async res => {
 				if (res.status == 200) {
 					// @ts-ignore
 					$("#deployDialog").modal("hide");
 					updateApps();
+				} else {
+					const response = await res.json();
+					setTimeout(() => {
+						popup.open("Error", response.message.toString().toLocaleUpperCase());
+					}, 200);
 				}
 				store.setState("loading", false);
 			})

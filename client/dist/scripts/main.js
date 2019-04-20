@@ -451,6 +451,7 @@ function updateApps(query) {
     }).catch(function (err) { return console.log(err); });
 }
 function doAction(event) {
+    var _this = this;
     var url = baseUrl;
     var btn = event.target;
     var action = btn.attributes.getNamedItem("data-action").value;
@@ -468,12 +469,27 @@ function doAction(event) {
                 },
                 body: JSON.stringify(data),
             })
-                .then(function (res) {
-                if (res.status == 200) {
-                    updateApps();
-                }
-                store.setState("loading", false);
-            })
+                .then(function (res) { return __awaiter(_this, void 0, void 0, function () {
+                var response_1;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            if (!(res.status == 200)) return [3 /*break*/, 1];
+                            updateApps();
+                            return [3 /*break*/, 3];
+                        case 1: return [4 /*yield*/, res.json()];
+                        case 2:
+                            response_1 = _a.sent();
+                            setTimeout(function () {
+                                popup.open("Error", response_1.message.toString().toLocaleUpperCase());
+                            }, 200);
+                            _a.label = 3;
+                        case 3:
+                            store.setState("loading", false);
+                            return [2 /*return*/];
+                    }
+                });
+            }); })
                 .catch(function (err) {
                 store.setState("loading", false);
                 console.log(err);
@@ -523,7 +539,7 @@ function doModalForm(event) {
                     body: JSON.stringify(data),
                 })
                     .then(function (res) { return __awaiter(_this, void 0, void 0, function () {
-                    var response_1;
+                    var response_2;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
@@ -531,15 +547,12 @@ function doModalForm(event) {
                                 if (!(res.status == 200)) return [3 /*break*/, 1];
                                 updateApps();
                                 return [3 /*break*/, 3];
-                            case 1:
-                                if (!(res.status == 500)) return [3 /*break*/, 3];
-                                return [4 /*yield*/, res.json()];
+                            case 1: return [4 /*yield*/, res.json()];
                             case 2:
-                                response_1 = _a.sent();
+                                response_2 = _a.sent();
                                 setTimeout(function () {
-                                    popup.open("Error", response_1.message);
+                                    popup.open("Error", response_2.message.toString().toLocaleUpperCase());
                                 }, 200);
-                                console.log(response_1);
                                 _a.label = 3;
                             case 3:
                                 store.setState("loading", false);
@@ -547,16 +560,20 @@ function doModalForm(event) {
                         }
                     });
                 }); })
-                    .catch(function (err) {
-                    console.log(err);
-                    store.setState("loading", false);
-                });
+                    .catch(function (err) { return __awaiter(_this, void 0, void 0, function () {
+                    return __generator(this, function (_a) {
+                        console.log(err);
+                        store.setState("loading", false);
+                        return [2 /*return*/];
+                    });
+                }); });
             });
             return [2 /*return*/];
         });
     });
 }
 function doForm(event) {
+    var _this = this;
     popup.open("Warning", "Are you sure?", function () {
         event.preventDefault();
         var url = baseUrl;
@@ -582,14 +599,29 @@ function doForm(event) {
             },
             body: JSON.stringify(data),
         })
-            .then(function (res) {
-            if (res.status == 200) {
-                // @ts-ignore
-                $("#deployDialog").modal("hide");
-                updateApps();
-            }
-            store.setState("loading", false);
-        })
+            .then(function (res) { return __awaiter(_this, void 0, void 0, function () {
+            var response_3;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!(res.status == 200)) return [3 /*break*/, 1];
+                        // @ts-ignore
+                        $("#deployDialog").modal("hide");
+                        updateApps();
+                        return [3 /*break*/, 3];
+                    case 1: return [4 /*yield*/, res.json()];
+                    case 2:
+                        response_3 = _a.sent();
+                        setTimeout(function () {
+                            popup.open("Error", response_3.message.toString().toLocaleUpperCase());
+                        }, 200);
+                        _a.label = 3;
+                    case 3:
+                        store.setState("loading", false);
+                        return [2 /*return*/];
+                }
+            });
+        }); })
             .catch(function (err) {
             console.log(err);
             store.setState("loading", false);

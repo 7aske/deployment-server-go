@@ -158,6 +158,7 @@ func (d *Deployer) Deploy(repo string, runner string, hostname string, port int)
 	app.SetHostname(hostname)
 	if _, ok := d.GetAppD(repo); !ok {
 		git := exec.Command("git", "-C", path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetAppsRoot()), "clone", repo)
+		git.Stdin = nil
 		git.Stdout = os.Stdout
 		git.Stderr = os.Stderr
 		err := git.Run()
@@ -186,6 +187,7 @@ func (d *Deployer) Update(a *App) error {
 		d.logger.Log("update - killing running app " + a.GetName())
 	}
 	git := exec.Command("git", "-C", a.GetRoot(), "pull")
+	git.Stdin = nil
 	git.Stdout = os.Stdout
 	git.Stderr = os.Stderr
 	err := git.Run()
@@ -533,6 +535,8 @@ func (d *Deployer) generatePort() int {
 }
 func (d *Deployer) isPortUsed(port int) bool {
 	if port < 1024 {
+		return true
+	} else if port == d.port{
 		return true
 	}
 	for _, a := range d.GetDeployedApps() {
