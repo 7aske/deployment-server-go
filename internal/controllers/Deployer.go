@@ -38,7 +38,7 @@ func NewDeployer(cfg *config.Config) Deployer {
 	d.config = cfg
 	d.port = cfg.GetAppsPort()
 	d.apps = []*App{}
-	utils.MakeDirIfNotExist(cfg.GetAppsRoot())
+	utils.MakeDirIfNotExist(path.Join(cfg.GetCwd(), cfg.GetAppsRoot()))
 	d.initAppsJson()
 	d.GetDeployedApps()
 	d.runners = []string{"node", "web", "python"}
@@ -151,13 +151,13 @@ func (d *Deployer) Deploy(repo string, runner string, hostname string, port int)
 	}
 	name := utils.GetNameFromRepo(repo)
 	app := NewApp(repo, name, runner)
-	app.SetRoot(path.Join(d.GetConfig().GetAppsRoot(), app.GetName()))
+	app.SetRoot(path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetAppsRoot(), app.GetName()))
 	if !d.isPortUsed(port) {
 		app.SetPort(port)
 	}
 	app.SetHostname(hostname)
 	if _, ok := d.GetAppD(repo); !ok {
-		git := exec.Command("git", "-C", d.GetConfig().GetAppsRoot(), "clone", repo)
+		git := exec.Command("git", "-C", path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetAppsRoot()), "clone", repo)
 		git.Stdout = os.Stdout
 		git.Stderr = os.Stderr
 		err := git.Run()
@@ -285,7 +285,7 @@ func (d *Deployer) Kill(app *App) error {
 func (d *Deployer) Remove(app *AppJSON) error {
 	a := NewAppFromJson(app)
 	if !d.IsAppRunning(a) {
-		if strings.HasPrefix(app.Root, path.Join(d.GetConfig().GetAppsRoot())) {
+		if strings.HasPrefix(app.Root, path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetAppsRoot())) {
 			err := os.RemoveAll(app.Root)
 			if err != nil {
 				d.logger.Log(err.Error())
@@ -385,7 +385,7 @@ func (d *Deployer) runNode(a *App) error {
 		d.logger.Log(err.Error())
 		return err
 	}
-	node := exec.Command("node", path.Join(a.GetRoot(), packageJson.Main))
+	node := exec.Command("node", a.GetRoot(), packageJson.Main)
 	node.Dir = a.GetRoot()
 	port := a.GetPort()
 	if port == 0 {
@@ -409,7 +409,7 @@ func (d *Deployer) runNode(a *App) error {
 	return nil
 }
 func (d *Deployer) runWeb(a *App) error {
-	node := exec.Command("node", d.GetConfig().GetBasicServer())
+	node := exec.Command("node", path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetBasicServer()))
 	node.Dir = a.GetRoot()
 	port := a.GetPort()
 	if port == 0 {
@@ -461,7 +461,7 @@ func (d *Deployer) runPythonFlask() {
 
 // load apps from json file into appsD array
 func (d *Deployer) GetDeployedApps() []AppJSON {
-	pth := path.Join(d.GetConfig().GetAppsRoot(), "apps.json")
+	pth := path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetAppsRoot(), "apps.json")
 	jsonFile, _ := ioutil.ReadFile(pth)
 	appsD := AppsJSON{}
 	err := json.Unmarshal(jsonFile, &appsD)
@@ -473,7 +473,7 @@ func (d *Deployer) GetDeployedApps() []AppJSON {
 
 // save currently running apps to json
 func (d *Deployer) RemoveAppFromJson(app AppJSON) {
-	pth := path.Join(d.GetConfig().GetAppsRoot(), "apps.json")
+	pth := path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetAppsRoot(), "apps.json")
 	appsJson := d.GetDeployedApps()
 	if pos := d.ContainsAppJSON(&appsJson, &app); pos != -1 {
 		appsJson = append(appsJson[:pos], appsJson[pos+1:]...)
@@ -485,7 +485,7 @@ func (d *Deployer) RemoveAppFromJson(app AppJSON) {
 	}
 }
 func (d *Deployer) SaveAppToJson(app AppJSON) {
-	pth := path.Join(d.GetConfig().GetAppsRoot(), "apps.json")
+	pth := path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetAppsRoot(), "apps.json")
 	appsJson := d.GetDeployedApps()
 	app.Pid = -1
 	app.Uptime = ""
@@ -502,7 +502,7 @@ func (d *Deployer) SaveAppToJson(app AppJSON) {
 	}
 }
 func (d *Deployer) initAppsJson() {
-	pth := path.Join(d.GetConfig().GetAppsRoot(), "apps.json")
+	pth := path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetAppsRoot(), "apps.json")
 	if _, err := os.Stat(pth); err != nil {
 		fmt.Println("initializing apps folder")
 		emptyArr, _ := json.Marshal(&AppsJSON{Apps: []AppJSON{}})
@@ -511,7 +511,7 @@ func (d *Deployer) initAppsJson() {
 			fmt.Println("json init - " + err.Error())
 		}
 	} else {
-		folders, _ := ioutil.ReadDir(d.GetConfig().GetAppsRoot())
+		folders, _ := ioutil.ReadDir(path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetAppsRoot()))
 		//for _, f := range folders {
 		//	fmt.Println(f.Name())
 		//}

@@ -11,6 +11,7 @@ import (
 )
 
 type Config struct {
+	cwd         string
 	port        int
 	appsPort    int
 	hostname    string
@@ -28,7 +29,13 @@ func (c *Config) Write() {
 	cFilePath := path.Join(cwd, "config", "server.cfg")
 	cFile, err := ini.Load(cFilePath)
 	if err != nil {
-		log.Fatal("unable to open ", cFilePath)
+		fp, _ := os.Create(cFilePath)
+		_, _ = fp.WriteString("; auto-generated default config")
+		fp.Close()
+		cFile, err = ini.Load(cFilePath)
+		if err != nil {
+			log.Fatal("unable to open ", cFilePath)
+		}
 	}
 	cFile.Section("dev").Key("port").SetValue(strconv.Itoa(c.port))
 	cFile.Section("dev").Key("appsPort").SetValue(strconv.Itoa(c.appsPort))
@@ -51,67 +58,111 @@ func (c *Config) Write() {
 
 func (c *Config) Read() {
 	cwd, _ := os.Getwd()
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("recovered ", r)
+		}
+	}()
 	cFilePath := path.Join(cwd, "config", "server.cfg")
 	cFile, err := ini.Load(cFilePath)
 	if err != nil {
-		log.Fatal("unable to open ", cFilePath)
-	}
-	port, err := strconv.Atoi(cFile.Section("dev").Key("port").Value())
-	if err != nil {
-		c.port = 3000
-	} else {
-		c.port = port
-	}
-	appsPort, err := strconv.Atoi(cFile.Section("dev").Key("appsPort").Value())
-	if err != nil {
-		c.appsPort = 3001
-	} else {
-		c.appsPort = appsPort
-	}
-	routerPort, err := strconv.Atoi(cFile.Section("router").Key("port").Value())
-	if err != nil {
+		fmt.Println(err)
+		c.port = 30000
+		c.appsPort = 30001
+
 		c.routerPort = 8080
+
+		c.user = "admin"
+		c.pass = "admin"
+		c.secret = []byte("secret")
+
+		c.appsRoot = "apps"
+		c.basicServer = "server/server.js"
+		c.hostname = "127.0.0.1"
+		c.Write()
 	} else {
-		c.routerPort = routerPort
-	}
-	secret := []byte(cFile.Section("auth").Key("secret").Value())
-	pass := cFile.Section("auth").Key("pass").Value()
-	user := cFile.Section("auth").Key("user").Value()
-
-	c.user = user
-	c.secret = secret
-	c.pass = pass
-
-	pth := cFile.Section("deployer").Key("root").Value()
-	if pth == "" {
-		c.appsRoot = path.Join(cwd, "apps")
-	} else {
-		if filepath.IsAbs(pth) {
-			c.appsRoot = pth
-
+		port, err := strconv.Atoi(cFile.Section("dev").Key("port").Value())
+		if err != nil {
+			c.port = 30000
+			c.Write()
 		} else {
-			c.appsRoot = path.Join(cwd, pth)
+			c.port = port
 		}
-	}
-	server := cFile.Section("deployer").Key("server").Value()
-	if server == "" {
-		c.basicServer = path.Join(cwd, "server", "server.js")
-	} else {
-		if filepath.IsAbs(server) {
-			c.basicServer = server
-
+		appsPort, err := strconv.Atoi(cFile.Section("dev").Key("appsPort").Value())
+		if err != nil {
+			c.appsPort = 30001
+			c.Write()
 		} else {
-			c.basicServer = path.Join(cwd, server)
+			c.appsPort = appsPort
 		}
+		routerPort, err := strconv.Atoi(cFile.Section("router").Key("port").Value())
+		if err != nil {
+			c.routerPort = 8080
+			c.Write()
+		} else {
+			c.routerPort = routerPort
+		}
+		secret := []byte(cFile.Section("auth").Key("secret").Value())
+		pass := cFile.Section("auth").Key("pass").Value()
+		user := cFile.Section("auth").Key("user").Value()
+
+		if user == "" {
+			user = "admin"
+			c.Write()
+		}
+		if len(secret) == 0 {
+			secret = []byte("secret")
+			c.Write()
+		}
+		if pass == "" {
+			pass = "admin"
+			c.Write()
+		}
+		c.user = user
+		c.secret = secret
+		c.pass = pass
+
+		pth := cFile.Section("deployer").Key("root").Value()
+		if pth == "" {
+			c.appsRoot = "apps"
+			c.Write()
+		} else {
+			if filepath.IsAbs(pth) {
+				c.appsRoot = path.Dir(pth)
+			} else {
+				c.appsRoot = pth
+			}
+		}
+		server := cFile.Section("deployer").Key("server").Value()
+		if server == "" {
+			c.basicServer = "server/server.js"
+			c.Write()
+		} else {
+			// TODO: this is probably wrong
+			if filepath.IsAbs(server) {
+				c.basicServer = path.Base(server) + "/server.js"
+			} else {
+				c.basicServer = server
+			}
+		}
+		hostname := cFile.Section("deployer").Key("hostname").Value()
+		c.hostname = hostname
 	}
-	hostname := cFile.Section("deployer").Key("hostname").Value()
-	c.hostname = hostname
+
 }
 
 func LoadConfig() *Config {
 	config := Config{}
+	cwd, _ := os.Getwd()
+	config.SetCwd(cwd)
 	config.Read()
 	return &config
+}
+func (c *Config) SetCwd(cwd string) {
+	c.cwd = cwd
+}
+func (c *Config) GetCwd() string {
+	return c.cwd
 }
 
 func (c *Config) SetPort(port int) {

@@ -64,7 +64,7 @@ func (rh *RouterHandler) GetHosts() *map[string]string {
 	return &rh.hosts
 }
 func (rh *RouterHandler) UpdateHosts() {
-	pth := path.Join(rh.config.GetAppsRoot(), "apps.json")
+	pth := path.Join(rh.config.GetCwd(), rh.config.GetAppsRoot(), "apps.json")
 	jsonFile, _ := ioutil.ReadFile(pth)
 	appsJson := AppsJSON{}
 	err := json.Unmarshal(jsonFile, &appsJson)
