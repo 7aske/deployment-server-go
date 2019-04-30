@@ -21,7 +21,6 @@ func NewServer() {
 	cli := NewCli(&deployer)
 	routerHandler := NewRouterHandler(&deployer, cfg)
 	devMux := http.NewServeMux()
-	devMux.HandleFunc("/auth", handler.HandleAuth)
 	devMux.HandleFunc("/api/deploy", func(writer http.ResponseWriter, request *http.Request) {
 		handler.HandleDeploy(writer, request)
 		routerHandler.UpdateHosts()
@@ -36,7 +35,8 @@ func NewServer() {
 	devMux.HandleFunc("/api/kill", handler.HandleKill)
 	devMux.HandleFunc("/api/remove", handler.HandleRemove)
 	devMux.HandleFunc("/api/settings", handler.HandleSettings)
-	devMux.HandleFunc("/client", handler.HandleRoot)
+	devMux.HandleFunc("/auth", handler.HandleAuth)
+	devMux.HandleFunc("/", handler.HandleRoot)
 	routerMux := http.NewServeMux()
 	//routerMux.HandleFunc("/", routerHandler.HandleRoot)
 	routerMux.HandleFunc("/", routerHandler.HandleIndex)

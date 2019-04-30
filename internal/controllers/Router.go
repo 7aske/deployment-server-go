@@ -73,11 +73,16 @@ func (rh *RouterHandler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 
 	host := r.Host
 	newurl := ""
-	proxiedPort := rh.hosts[host]
+	proxiedPort := ":" + rh.hosts[host]
 	if host == rh.config.GetHostname() || strings.HasPrefix(host, "dev.") {
 		newurl = protocol + host + ":" + strconv.Itoa(rh.config.GetPort()) + r.RequestURI
+	} else if proxiedPort == ":" {
+		w.WriteHeader(http.StatusNotFound)
+		length, _ := w.Write(rh.statusNotFound)
+		w.Header().Set("Content-Length", strconv.Itoa(length))
+		return
 	} else {
-		newurl = protocol + host + ":" + proxiedPort + r.RequestURI
+		newurl = protocol + host + proxiedPort + r.RequestURI
 	}
 	fmt.Println(newurl, proxiedPort)
 	u, err := url.Parse(newurl)
@@ -87,7 +92,13 @@ func (rh *RouterHandler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", strconv.Itoa(length))
 		return
 	}
-	httputil.NewSingleHostReverseProxy(u).ServeHTTP(w, r)
+	proxy := httputil.NewSingleHostReverseProxy(u)
+	proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, e error) {
+		w.WriteHeader(http.StatusInternalServerError)
+		length, _ := w.Write(rh.statusNotFound)
+		w.Header().Set("Content-Length", strconv.Itoa(length))
+	}
+	proxy.ServeHTTP(w, r)
 }
 func (rh *RouterHandler) GetHosts() *map[string]string {
 	return &rh.hosts

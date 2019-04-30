@@ -458,7 +458,10 @@ func (h *Handler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 	h.logger.Log(r.URL.Path)
 	if cookie, err := r.Cookie("Authorization"); err != nil {
 		h.logger.Log("root - redirecting bad token " + r.RemoteAddr)
-		http.Redirect(w, r, "/auth", http.StatusTemporaryRedirect)
+		//http.Redirect(w, r, "/auth", http.StatusTemporaryRedirect)
+		w.WriteHeader(http.StatusUnauthorized)
+		length, _ := w.Write(h.statusUnauthorized)
+		w.Header().Set("Content-Length", strconv.Itoa(length))
 	} else {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
 		if h.verifyToken(token) {
@@ -493,7 +496,10 @@ func (h *Handler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			h.logger.Log("root - redirecting bad token " + r.RemoteAddr)
-			http.Redirect(w, r, "/auth", http.StatusMovedPermanently)
+			//http.Redirect(w, r, "/auth", http.StatusTemporaryRedirect)
+			w.WriteHeader(http.StatusUnauthorized)
+			length, _ := w.Write(h.statusUnauthorized)
+			w.Header().Set("Content-Length", strconv.Itoa(length))
 		}
 	}
 }
@@ -507,15 +513,15 @@ func (h *Handler) HandleAuth(w http.ResponseWriter, r *http.Request) {
 			cookie := http.Cookie{Name: "Authorization", Value: fmt.Sprintf("Bearer %s", token), Path: "/", Expires: time.Now().Add(24 * time.Hour)}
 			h.logger.Log("auth - authorized " + r.RemoteAddr)
 			http.SetCookie(w, &cookie)
-			http.Redirect(w, r, "/", http.StatusMovedPermanently)
+			http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		} else {
-			http.Redirect(w, r, "/auth", http.StatusMovedPermanently)
+			http.Redirect(w, r, "/auth", http.StatusTemporaryRedirect)
 		}
 	case http.MethodGet:
 		if cookie, err := r.Cookie("Authorization"); err == nil {
 			token := strings.Split(cookie.Value, "Bearer ")[1]
 			if h.verifyToken(token) {
-				http.Redirect(w, r, "/", http.StatusMovedPermanently)
+				http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 				break
 			}
 		}
