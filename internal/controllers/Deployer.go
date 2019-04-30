@@ -196,11 +196,6 @@ func (d *Deployer) Update(a *App) error {
 		return err
 	}
 	a.SetLastUpdated(time.Now())
-	//err = d.Run(a)
-	//if err != nil {
-	//	fmt.Println(err)
-	//	return err
-	//}
 	d.SaveAppToJson(d.GetAppAsJSON(a))
 	d.logger.Log("update - updated app " + a.GetName())
 	return nil
@@ -514,9 +509,6 @@ func (d *Deployer) initAppsJson() {
 		}
 	} else {
 		folders, _ := ioutil.ReadDir(path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetAppsRoot()))
-		//for _, f := range folders {
-		//	fmt.Println(f.Name())
-		//}
 		appsD := d.GetDeployedApps()
 		for _, app := range appsD {
 			if !utils.ContainsFile(app.Name, &folders) {

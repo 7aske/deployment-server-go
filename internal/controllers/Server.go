@@ -22,12 +22,15 @@ func NewServer() {
 	routerHandler := NewRouterHandler(&deployer, cfg)
 	devMux := http.NewServeMux()
 	devMux.HandleFunc("/api/deploy", func(writer http.ResponseWriter, request *http.Request) {
+		go func() {
+			routerHandler.UpdateHosts()
+			l.Log("updating router hosts")
+			for key, value := range *routerHandler.GetHosts() {
+				l.Log(fmt.Sprintf("%s %s", key, value))
+			}
+		}()
 		handler.HandleDeploy(writer, request)
-		routerHandler.UpdateHosts()
-		l.Log("updating router hosts")
-		for key, value := range *routerHandler.GetHosts() {
-			l.Log(fmt.Sprintf("%s %s", key, value))
-		}
+
 	})
 	devMux.HandleFunc("/api/update", handler.HandleUpdate)
 	devMux.HandleFunc("/api/run", handler.HandleRun)

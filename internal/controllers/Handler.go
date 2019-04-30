@@ -458,10 +458,10 @@ func (h *Handler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 	h.logger.Log(r.URL.Path)
 	if cookie, err := r.Cookie("Authorization"); err != nil {
 		h.logger.Log("root - redirecting bad token " + r.RemoteAddr)
-		//http.Redirect(w, r, "/auth", http.StatusTemporaryRedirect)
-		w.WriteHeader(http.StatusUnauthorized)
-		length, _ := w.Write(h.statusUnauthorized)
-		w.Header().Set("Content-Length", strconv.Itoa(length))
+		http.Redirect(w, r, "/auth", http.StatusTemporaryRedirect)
+		//w.WriteHeader(http.StatusUnauthorized)
+		//length, _ := w.Write(h.statusUnauthorized)
+		//w.Header().Set("Content-Length", strconv.Itoa(length))
 	} else {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
 		if h.verifyToken(token) {
@@ -496,10 +496,10 @@ func (h *Handler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			h.logger.Log("root - redirecting bad token " + r.RemoteAddr)
-			//http.Redirect(w, r, "/auth", http.StatusTemporaryRedirect)
-			w.WriteHeader(http.StatusUnauthorized)
-			length, _ := w.Write(h.statusUnauthorized)
-			w.Header().Set("Content-Length", strconv.Itoa(length))
+			http.Redirect(w, r, "/auth", http.StatusTemporaryRedirect)
+			//w.WriteHeader(http.StatusUnauthorized)
+			//length, _ := w.Write(h.statusUnauthorized)
+			//w.Header().Set("Content-Length", strconv.Itoa(length))
 		}
 	}
 }

@@ -41,52 +41,49 @@ func NewRouterHandler(d *Deployer, c *config.Config) *RouterHandler {
 	return &rh
 }
 
-//func (rh *RouterHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
-//	rh.logger.Log(fmt.Sprintf("router - %s %s", r.URL.Path, r.RemoteAddr, ))
-//	protocol := "http_utils://"
-//	if r.URL.Scheme == "https" {
-//		protocol = "https://"
-//	}
-//	fmt.Println(http_utils.FormatRequest(r))
-//	host := r.Host
-//	url := ""
-//	if host == rh.config.GetHostname() || strings.HasPrefix(host, "dev.") {
-//		url = protocol + host + ":" + strconv.Itoa(rh.config.GetPort())
-//	} else {
-//		url = protocol + host + ":" + rh.hosts[host]
-//	}
-//	if url == protocol+host+":" {
-//		w.WriteHeader(http.StatusNotFound)
-//		length, _ := w.Write(rh.statusNotFound)
-//		w.Header().Set("Content-Length", strconv.Itoa(length))
-//	} else {
-//		http.Redirect(w, r, url, http.StatusPermanentRedirect)
-//	}
-//}
+func (rh *RouterHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
+	rh.logger.Log(fmt.Sprintf("router - %s %s", r.URL.Path, r.RemoteAddr, ))
+	protocol := "http_utils://"
+	if r.URL.Scheme == "https" {
+		protocol = "https://"
+	}
+	host := r.Host
+	newurl := ""
+	if host == rh.config.GetHostname() || strings.HasPrefix(host, "dev.") {
+		newurl = protocol + host + ":" + strconv.Itoa(rh.config.GetPort())
+	} else {
+		newurl = protocol + host + ":" + rh.hosts[host]
+	}
+	if newurl == protocol+host+":" {
+		w.WriteHeader(http.StatusNotFound)
+		length, _ := w.Write(rh.statusNotFound)
+		w.Header().Set("Content-Length", strconv.Itoa(length))
+	} else {
+		http.Redirect(w, r, newurl, http.StatusPermanentRedirect)
+	}
+}
 func (rh *RouterHandler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	rh.logger.Log(fmt.Sprintf("router - %s %s", r.URL.Path, r.RemoteAddr, ))
 	protocol := "http://"
 	if r.URL.Scheme == "https" {
 		protocol = "https://"
 	}
-	//fmt.Println(http_utils.FormatRequest(r))
 
 	host := r.Host
 	newurl := ""
 	proxiedPort := ":" + rh.hosts[host]
 	if host == rh.config.GetHostname() || strings.HasPrefix(host, "dev.") {
-		newurl = protocol + host + ":" + strconv.Itoa(rh.config.GetPort()) + r.RequestURI
+		newurl = protocol + host + ":" + strconv.Itoa(rh.config.GetPort())
 	} else if proxiedPort == ":" {
 		w.WriteHeader(http.StatusNotFound)
 		length, _ := w.Write(rh.statusNotFound)
 		w.Header().Set("Content-Length", strconv.Itoa(length))
 		return
 	} else {
-		newurl = protocol + host + proxiedPort + r.RequestURI
+		newurl = protocol + host + proxiedPort
 	}
-	fmt.Println(newurl, proxiedPort)
 	u, err := url.Parse(newurl)
-	if err != nil || proxiedPort == "" {
+	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		length, _ := w.Write(rh.statusNotFound)
 		w.Header().Set("Content-Length", strconv.Itoa(length))
