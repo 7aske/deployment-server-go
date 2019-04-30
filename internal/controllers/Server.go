@@ -38,7 +38,8 @@ func NewServer() {
 	devMux.HandleFunc("/api/settings", handler.HandleSettings)
 	devMux.HandleFunc("/", handler.HandleRoot)
 	routerMux := http.NewServeMux()
-	routerMux.HandleFunc("/", routerHandler.HandleRoot)
+	//routerMux.HandleFunc("/", routerHandler.HandleRoot)
+	routerMux.HandleFunc("/", routerHandler.HandleIndex)
 	go func() {
 		l.Log(fmt.Sprintf("starting dev    server on port %d", cfg.GetPort()))
 		err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.GetPort()), devMux)

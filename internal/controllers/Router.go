@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -39,26 +41,53 @@ func NewRouterHandler(d *Deployer, c *config.Config) *RouterHandler {
 	return &rh
 }
 
-func (rh *RouterHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
+//func (rh *RouterHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
+//	rh.logger.Log(fmt.Sprintf("router - %s %s", r.URL.Path, r.RemoteAddr, ))
+//	protocol := "http_utils://"
+//	if r.URL.Scheme == "https" {
+//		protocol = "https://"
+//	}
+//	fmt.Println(http_utils.FormatRequest(r))
+//	host := r.Host
+//	url := ""
+//	if host == rh.config.GetHostname() || strings.HasPrefix(host, "dev.") {
+//		url = protocol + host + ":" + strconv.Itoa(rh.config.GetPort())
+//	} else {
+//		url = protocol + host + ":" + rh.hosts[host]
+//	}
+//	if url == protocol+host+":" {
+//		w.WriteHeader(http.StatusNotFound)
+//		length, _ := w.Write(rh.statusNotFound)
+//		w.Header().Set("Content-Length", strconv.Itoa(length))
+//	} else {
+//		http.Redirect(w, r, url, http.StatusPermanentRedirect)
+//	}
+//}
+func (rh *RouterHandler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	rh.logger.Log(fmt.Sprintf("router - %s %s", r.URL.Path, r.RemoteAddr, ))
 	protocol := "http://"
 	if r.URL.Scheme == "https" {
 		protocol = "https://"
 	}
+	//fmt.Println(http_utils.FormatRequest(r))
+
 	host := r.Host
-	url := ""
+	newurl := ""
+	proxiedPort := rh.hosts[host]
 	if host == rh.config.GetHostname() || strings.HasPrefix(host, "dev.") {
-		url = protocol + host + ":" + strconv.Itoa(rh.config.GetPort())
+		newurl = protocol + host + ":" + strconv.Itoa(rh.config.GetPort()) + r.RequestURI
 	} else {
-		url = protocol + host + ":" + rh.hosts[host]
+		newurl = protocol + host + ":" + proxiedPort + r.RequestURI
 	}
-	if url == protocol+host+":" {
+	fmt.Println(newurl, proxiedPort)
+	u, err := url.Parse(newurl)
+	if err != nil || proxiedPort == "" {
 		w.WriteHeader(http.StatusNotFound)
 		length, _ := w.Write(rh.statusNotFound)
 		w.Header().Set("Content-Length", strconv.Itoa(length))
-	} else {
-		http.Redirect(w, r, url, http.StatusPermanentRedirect)
+		return
 	}
+	httputil.NewSingleHostReverseProxy(u).ServeHTTP(w, r)
 }
 func (rh *RouterHandler) GetHosts() *map[string]string {
 	return &rh.hosts

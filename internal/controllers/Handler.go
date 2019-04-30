@@ -70,10 +70,6 @@ func (s *SettingsRequest) Read(body *io.ReadCloser) {
 	}
 }
 
-//func (h Handler) LoadConfig() {
-//	h.config = config.LoadConfig()
-//
-//}
 func (h *Handler) SetConfig(c *config.Config) {
 	h.config = c
 }
@@ -108,7 +104,6 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 		if h.verifyToken(token) {
 			if r.Method == http.MethodPost {
 				jsonBody := getJsonMap(&r.Body)
-				//name := GetNameFromRepo(jsonBody["repo"])
 				repo := jsonBody["repo"]
 				runner := jsonBody["runner"]
 				hostname := jsonBody["hostname"]
