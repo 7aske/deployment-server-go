@@ -36,7 +36,7 @@ func NewServer() {
 	devMux.HandleFunc("/api/kill", handler.HandleKill)
 	devMux.HandleFunc("/api/remove", handler.HandleRemove)
 	devMux.HandleFunc("/api/settings", handler.HandleSettings)
-	devMux.HandleFunc("/", handler.HandleRoot)
+	devMux.HandleFunc("/client", handler.HandleRoot)
 	routerMux := http.NewServeMux()
 	//routerMux.HandleFunc("/", routerHandler.HandleRoot)
 	routerMux.HandleFunc("/", routerHandler.HandleIndex)

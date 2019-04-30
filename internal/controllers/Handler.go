@@ -458,7 +458,7 @@ func (h *Handler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 	h.logger.Log(r.URL.Path)
 	if cookie, err := r.Cookie("Authorization"); err != nil {
 		h.logger.Log("root - redirecting bad token " + r.RemoteAddr)
-		http.Redirect(w, r, "/auth", http.StatusMovedPermanently)
+		http.Redirect(w, r, "/auth", http.StatusTemporaryRedirect)
 	} else {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
 		if h.verifyToken(token) {
