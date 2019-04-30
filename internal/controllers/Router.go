@@ -90,11 +90,11 @@ func (rh *RouterHandler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	proxy := httputil.NewSingleHostReverseProxy(u)
-	proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, e error) {
-		w.WriteHeader(http.StatusInternalServerError)
-		length, _ := w.Write(rh.statusNotFound)
-		w.Header().Set("Content-Length", strconv.Itoa(length))
-	}
+	//proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, e error) {
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	length, _ := w.Write(rh.statusNotFound)
+	//	w.Header().Set("Content-Length", strconv.Itoa(length))
+	//}
 	proxy.ServeHTTP(w, r)
 }
 func (rh *RouterHandler) GetHosts() *map[string]string {

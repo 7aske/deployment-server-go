@@ -42,7 +42,7 @@ func (l *Logger) updateLogger() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fi, err := os.OpenFile(logFP, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	fi, err := os.OpenFile(logFP, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0776)
 	if err != nil {
 		fmt.Println(err)
 	}

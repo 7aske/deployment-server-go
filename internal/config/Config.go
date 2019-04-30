@@ -29,9 +29,10 @@ func (c *Config) Write() {
 	cFilePath := path.Join(cwd, "config", "server.cfg")
 	cFile, err := ini.Load(cFilePath)
 	if err != nil {
+		_ = os.MkdirAll(path.Dir(cFilePath), 0775)
 		fp, _ := os.Create(cFilePath)
 		_, _ = fp.Write([]byte{})
-		fp.Close()
+		_ = fp.Close()
 		cFile, err = ini.Load(cFilePath)
 		if err != nil {
 			log.Fatal("unable to open ", cFilePath)
