@@ -43,7 +43,7 @@ func NewRouterHandler(d *Deployer, c *config.Config) *RouterHandler {
 
 func (rh *RouterHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 	rh.logger.Log(fmt.Sprintf("router - %s %s", r.URL.Path, r.RemoteAddr, ))
-	protocol := "http_utils://"
+	protocol := "http://"
 	if r.URL.Scheme == "https" {
 		protocol = "https://"
 	}

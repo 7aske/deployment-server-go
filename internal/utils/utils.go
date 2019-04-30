@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"regexp"
@@ -17,7 +15,7 @@ func RenderLoginPage() []byte {
 			name="viewport"
 			content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
 		/>
-		<meta http_utils-equiv="X-UA-Compatible" content="ie=edge" />
+		<meta http-equiv="X-UA-Compatible" content="ie=edge" />
 		<title>Deployment Server</title>
 		<style>
 			* {
@@ -107,11 +105,7 @@ func PrintHelp() {
 	fmt.Println()
 	fmt.Println("-i		interactive shell access")
 }
-func Hash(str string) string {
-	h := sha256.New()
-	h.Write([]byte(str))
-	return hex.EncodeToString(h.Sum(nil))
-}
+
 
 func GetNameFromRepo(repo string) string {
 	reg, _ := regexp.Compile("([^/]+$)")

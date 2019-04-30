@@ -21,6 +21,7 @@ func NewServer() {
 	cli := NewCli(&deployer)
 	routerHandler := NewRouterHandler(&deployer, cfg)
 	devMux := http.NewServeMux()
+
 	devMux.HandleFunc("/api/deploy", func(writer http.ResponseWriter, request *http.Request) {
 		go func() {
 			routerHandler.UpdateHosts()
@@ -30,8 +31,8 @@ func NewServer() {
 			}
 		}()
 		handler.HandleDeploy(writer, request)
-
 	})
+
 	devMux.HandleFunc("/api/update", handler.HandleUpdate)
 	devMux.HandleFunc("/api/run", handler.HandleRun)
 	devMux.HandleFunc("/api/find", handler.HandleFind)
@@ -43,6 +44,7 @@ func NewServer() {
 	routerMux := http.NewServeMux()
 	//routerMux.HandleFunc("/", routerHandler.HandleRoot)
 	routerMux.HandleFunc("/", routerHandler.HandleIndex)
+
 	go func() {
 		l.Log(fmt.Sprintf("starting dev    server on port %d", cfg.GetPort()))
 		err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.GetPort()), devMux)
@@ -59,8 +61,10 @@ func NewServer() {
 			panic(fmt.Sprintf("error starting server on port %d", cfg.GetRouterPort()))
 		}
 	}()
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Kill)
 	go func() {
 		for sig := range c {
 			deployer.GetLogger().Log("server killed with sig " + sig.String())
@@ -73,6 +77,7 @@ func NewServer() {
 			os.Exit(0)
 		}
 	}()
+
 	if utils.Contains("-i", &os.Args) != -1 {
 		fmt.Println("type \"help\" from help...")
 		reader := bufio.NewReader(os.Stdin)
@@ -85,7 +90,7 @@ func NewServer() {
 
 	} else {
 		for {
-			time.Sleep(time.Hour)
+			time.Sleep(time.Second)
 		}
 	}
 }

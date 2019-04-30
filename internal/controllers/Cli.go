@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"../app"
 	"fmt"
 	"strconv"
 )
@@ -72,7 +73,7 @@ func (c *Cli) Deploy(repo string, runner string, hostname string, port int) {
 }
 func (c *Cli) Run(query string) {
 	if appJson, ok := c.deployer.GetAppD(query); ok {
-		app := NewAppFromJson(appJson)
+		app := app.NewAppFromJson(appJson)
 		if c.deployer.IsAppRunning(app) {
 			fmt.Println("already running")
 		} else {
@@ -119,7 +120,7 @@ func (c *Cli) Find(query string) {
 		}
 	} else {
 		for _, a := range *apps {
-			if a.id == query || a.name == query || strconv.Itoa(a.pid) == query {
+			if a.Id == query || a.Name == query || strconv.Itoa(a.Pid) == query {
 				a.Print()
 			}
 		}
