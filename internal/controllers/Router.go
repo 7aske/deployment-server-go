@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"../config"
+	httpresp "../http/responses"
 	"../logger"
 	"encoding/json"
 	"fmt"
@@ -17,11 +18,6 @@ import (
 type RouterHandler struct {
 	deployer                  *Deployer
 	config                    *config.Config
-	statusInternalServerError []byte
-	statusOK                  []byte
-	statusUnauthorized        []byte
-	statusNotFound            []byte
-	statusMethodNotAllowed    []byte
 	hosts                     map[string]string
 	logger                    *logger.Logger
 }
@@ -32,11 +28,6 @@ func NewRouterHandler(d *Deployer, c *config.Config) *RouterHandler {
 	rh.config = c
 	rh.hosts = map[string]string{}
 	rh.logger = logger.NewLogger(logger.LOG_SERVER)
-	rh.statusInternalServerError = []byte("( ͠° ͟ʖ ͡°) 500 INTERNAL SERVER ERROR")
-	rh.statusNotFound = []byte("( ͡° ʖ̯ ͡°) 404 NOT FOUND")
-	rh.statusUnauthorized = []byte("( ͠° ͟ʖ ͡°) 401 UNAUTHORIZED")
-	rh.statusMethodNotAllowed = []byte("( ͠° ͟ʖ ͡°) 405 METHOD NOT ALLOWED")
-	rh.statusOK = []byte("( ͡ᵔ ͜ʖ ͡ᵔ ) 200 OK")
 	rh.UpdateHosts()
 	return &rh
 }
@@ -55,9 +46,7 @@ func (rh *RouterHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 		newurl = protocol + host + ":" + rh.hosts[host]
 	}
 	if newurl == protocol+host+":" {
-		w.WriteHeader(http.StatusNotFound)
-		length, _ := w.Write(rh.statusNotFound)
-		w.Header().Set("Content-Length", strconv.Itoa(length))
+		httpresp.ResponseNotFound(w)
 	} else {
 		http.Redirect(w, r, newurl, http.StatusPermanentRedirect)
 	}
@@ -69,32 +58,21 @@ func (rh *RouterHandler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 		protocol = "https://"
 	}
 
-	host := r.Host
-	newurl := ""
-	proxiedPort := ":" + rh.hosts[host]
-	if host == rh.config.GetHostname() || strings.HasPrefix(host, "dev.") {
-		newurl = protocol + host + ":" + strconv.Itoa(rh.config.GetPort())
-	} else if proxiedPort == ":" {
-		w.WriteHeader(http.StatusNotFound)
-		length, _ := w.Write(rh.statusNotFound)
-		w.Header().Set("Content-Length", strconv.Itoa(length))
-		return
+	var newurl string
+	if strings.HasPrefix(r.Host, "dev.") {
+		newurl = protocol + "127.0.0.1" + ":" + strconv.Itoa(rh.config.GetPort())
+	} else if proxiedPort, ok := rh.hosts[r.Host]; ok {
+		newurl = protocol + "127.0.0.1" + ":" + proxiedPort
 	} else {
-		newurl = protocol + host + proxiedPort
+		httpresp.ResponseNotFound(w)
+		return
 	}
 	u, err := url.Parse(newurl)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		length, _ := w.Write(rh.statusNotFound)
-		w.Header().Set("Content-Length", strconv.Itoa(length))
+		httpresp.ResponseNotFound(w)
 		return
 	}
 	proxy := httputil.NewSingleHostReverseProxy(u)
-	//proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, e error) {
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	length, _ := w.Write(rh.statusNotFound)
-	//	w.Header().Set("Content-Length", strconv.Itoa(length))
-	//}
 	proxy.ServeHTTP(w, r)
 }
 func (rh *RouterHandler) GetHosts() *map[string]string {
