@@ -4,15 +4,15 @@ import (
 	"../app"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 type Cli struct {
-	deployer    *Deployer
-	lastCommand []byte
+	deployer *Deployer
 }
 
 func NewCli(d *Deployer) *Cli {
-	return &Cli{d, []byte{}}
+	return &Cli{d}
 }
 func (c *Cli) ParseCommand(args ...string) {
 	if len(args) > 0 {
@@ -30,114 +30,195 @@ func (c *Cli) ParseCommand(args ...string) {
 			}
 		case "run":
 			if len(args) < 2 {
-				fmt.Println("run <query>")
+				printHelp()
 			} else {
 				c.Run(args[1])
 			}
+		case "list":
+			fallthrough
 		case "find":
 			if len(args) == 1 {
-				c.Find("")
+				c.Find("", "")
 			} else if len(args) == 2 {
-				c.Find(args[1])
+				if args[1] == "dep" {
+					c.Find("", "deployed")
+				} else if args[1] == "run" {
+					c.Find("", "running")
+				} else {
+					c.Find(args[1], "")
+				}
+			} else if len(args) == 3 {
+				if args[1] == "dep" || args[1] == "run" {
+					c.Find(args[2], args[1])
+				} else if args[2] == "dep" || args[2] == "run" {
+					c.Find(args[1], args[2])
+				} else {
+					printHelp()
+				}
 			} else {
-				fmt.Println("find <query>")
+				printHelp()
 			}
 		case "remove":
 			if len(args) == 2 {
 				c.Remove(args[1])
 			} else {
-				fmt.Println("remove <query>")
+				printHelp()
 			}
 		case "kill":
 			if len(args) == 2 {
 				c.Kill(args[1])
 			} else {
-				fmt.Println("kill <query>")
+				printHelp()
 			}
+		case "settings":
+			if len(args) == 3 {
+				c.Settings(args[1], args[2])
+			} else {
+				printHelp()
+			}
+		default:
+			printHelp()
 		}
-
 	}
 }
 func (c *Cli) Deploy(repo string, runner string, hostname string, port int) {
-	app, err := c.deployer.Deploy(repo, runner, hostname, port)
+	a, err := c.deployer.Deploy(repo, runner, hostname, port)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	err = c.deployer.Install(app)
+	err = c.deployer.Install(a)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	app.Print()
+	a.Print()
 }
 func (c *Cli) Run(query string) {
 	if appJson, ok := c.deployer.GetAppD(query); ok {
-		app := app.NewAppFromJson(appJson)
-		if c.deployer.IsAppRunning(app) {
+		a := app.NewAppFromJson(appJson)
+		if c.deployer.IsAppRunning(a) {
 			fmt.Println("already running")
 		} else {
-			err := c.deployer.Run(app)
+			err := c.deployer.Run(a)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
-			app.Print()
+			a.Print()
 		}
 	} else {
 		fmt.Println("not found")
 	}
 }
 func (c *Cli) Kill(query string) {
-	if app, ok := c.deployer.GetApp(query); ok {
-		_ = c.deployer.Kill(app)
-		fmt.Println("killed app with pid " + strconv.Itoa(app.GetPid()))
+	if a, ok := c.deployer.GetApp(query); ok {
+		_ = c.deployer.Kill(a)
+		fmt.Println("killed app with pid " + strconv.Itoa(a.GetPid()))
 	} else {
 		fmt.Println("not found")
 	}
 }
 func (c *Cli) Remove(query string) {
 	if appJson, ok := c.deployer.GetAppD(query); ok {
-		if app, ok := c.deployer.GetApp(appJson.Id); ok {
-			_ = c.deployer.Kill(app)
+		if a, ok := c.deployer.GetApp(appJson.Id); ok {
+			_ = c.deployer.Kill(a)
 		}
-		c.deployer.Remove(appJson)
-		fmt.Println("removed app with id of " + appJson.Id)
+		err := c.deployer.Remove(appJson)
+		if err != nil {
+			fmt.Println("failed to remove app with id of " + appJson.Id)
+			fmt.Println(err)
+		} else {
+			fmt.Println("removed app with id of " + appJson.Id)
+		}
 	} else {
 		fmt.Println("not found")
 	}
 }
 
-func (c *Cli) Find(query string) {
+func (c *Cli) Find(query string, typ string) {
 	apps := c.deployer.GetApps()
 	appsD := c.deployer.GetDeployedApps()
-	if query == "" {
-		for _, a := range *apps {
-			a.Print()
-		}
-		for _, a := range appsD {
-			a.Print()
-		}
-	} else {
-		for _, a := range *apps {
-			if a.Id == query || a.Name == query || strconv.Itoa(a.Pid) == query {
+	if typ == "deployed" {
+		if query == "" {
+			for _, a := range appsD {
 				a.Print()
 			}
+		} else {
+			for _, a := range appsD {
+				if a.Id == query || a.Name == query || strconv.Itoa(a.Pid) == query {
+					a.Print()
+					return
+				}
+			}
 		}
-		for _, a := range appsD {
-			if a.Id == query || a.Name == query {
+	} else if typ == "running" {
+		if query == "" {
+			for _, a := range *apps {
 				a.Print()
+			}
+		} else {
+			for _, a := range *apps {
+				if a.Id == query || a.Name == query {
+					a.Print()
+					return
+				}
+			}
+		}
+	} else {
+		if query == "" {
+			for _, a := range *apps {
+				a.Print()
+			}
+			for _, a := range appsD {
+				a.Print()
+			}
+		} else {
+			for _, a := range *apps {
+				if a.Id == query || a.Name == query || strconv.Itoa(a.Pid) == query {
+					a.Print()
+					return
+				}
+			}
+			for _, a := range appsD {
+				if a.Id == query || a.Name == query {
+					a.Print()
+					return
+				}
 			}
 		}
 	}
+
+}
+func (c *Cli) Settings(query string, setting string) {
+	kv := strings.Split(setting, "=")
+	if len(kv) != 2 {
+		fmt.Printf("invalid settings key-value pair\n")
+		return
+	}
+	settings := make(map[string]string, 1)
+	settings[kv[0]] = kv[1]
+	err := c.deployer.Settings(query, settings)
+	if err != nil {
+		fmt.Printf(err.Error())
+	} else {
+		fmt.Printf("updated " + query + "\n")
+	}
 }
 
-//func (c *Cli) PutLastCommand() {
-//fmt.Println(string(c.lastCommand))
-//	buffer := bytes.Buffer{}
-//	buffer.Write(c.lastCommand)
-//	os.Stdin = buffer
-//}
 func printHelp() {
-	fmt.Println("printing help")
+	// deploy run find kill remove settings
+	fmt.Println("deployment-server 0.0.1 == Nikola Tasic == github.com/7aske")
+	fmt.Printf("%-10s\t%-20s\t%s\n", "deploy", "<repo>", "deploy app from specified")
+	fmt.Printf("%-10s\t%-20s\t%s\n", "", "", "github repository")
+	fmt.Printf("%-10s\t%-20s\t%s\n", "run", "<app|id>", "run the deployed app")
+	fmt.Printf("%-10s\t%-20s\t%s\n", "", "", "with specified name or id")
+	fmt.Printf("%-10s\t%-20s\t%s\n", "find", "[dep|run] [app|id]", "list apps based on search")
+	fmt.Printf("%-10s\t%-20s\t%s\n", "", "", "terms")
+	fmt.Printf("%-10s\t%-20s\t%s\n", "kill", "<app|id>", "kill app with specified")
+	fmt.Printf("%-10s\t%-20s\t%s\n", "", "", "name or id")
+	fmt.Printf("%-10s\t%-20s\t%s\n", "remove", "<app|id>", "remove app with specified")
+	fmt.Printf("%-10s\t%-20s\t%s\n", "", "", "name or id")
+	fmt.Printf("%-10s\t%-20s\t%s\n", "settings", "<app|id> <key=value>", "change the settings of a deployed")
+	fmt.Printf("%-10s\t%-20s\t%s\n", "", "", "app based on name or id")
 }

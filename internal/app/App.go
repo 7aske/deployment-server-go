@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -150,30 +151,29 @@ func (a *App) SetRunner(r string) {
 	a.Runner = r
 }
 func (a *App) Print() {
+	a.Uptime = time.Now().Sub(a.LastRun).String()
 	fmt.Println("-running-")
 	fmt.Printf("Id:      \t%s\n", a.Id)
 	fmt.Printf("Repo:    \t%s\n", a.Repo)
 	fmt.Printf("Name:    \t%s\n", a.Name)
-	fmt.Printf("Root:    \t%s\n", a.Root)
+	fmt.Printf("Root:    \t%s\n", filepath.Base(a.Root))
 	fmt.Printf("Port:    \t%d\n", a.Port)
-	//fmt.Printf("Hostname:\t%s\n",a.Hostname)
-	//fmt.Printf("Deployed:\t%s\n",a.Deployed)
-	//fmt.Printf("LastRun: \t%s\n",a.LastRun)
-	//fmt.Printf("Uptime:  \t%s\n",a.Uptime)
+	fmt.Printf("Host:    \t%s\n", a.Hostname)
+	fmt.Printf("Deployed:\t%s\n", a.Deployed)
+	fmt.Printf("LastRun: \t%s\n", a.LastRun)
+	fmt.Printf("Uptime:  \t%s\n", a.Uptime)
 	fmt.Printf("Runner:  \t%s\n", a.Runner)
 	fmt.Printf("Pid:     \t%d\n", a.Pid)
 }
 func (a *AppJSON) Print() {
-	fmt.Println("-Deployed-")
+	fmt.Println("-deployed-")
 	fmt.Printf("Id:      \t%s\n", a.Id)
 	fmt.Printf("Repo:    \t%s\n", a.Repo)
 	fmt.Printf("Name:    \t%s\n", a.Name)
-	fmt.Printf("Root:    \t%s\n", a.Root)
+	fmt.Printf("Root:    \t%s\n", filepath.Base(a.Root))
 	fmt.Printf("Port:    \t%d\n", a.Port)
-	//fmt.Printf("Hostname:\t%s\n",a.Hostname)
-	//fmt.Printf("Deployed:\t%s\n",a.Deployed)
-	//fmt.Printf("LastRun: \t%s\n",a.LastRun)
-	//fmt.Printf("Uptime:  \t%s\n",a.Uptime)
+	fmt.Printf("Host:    \t%s\n", a.Hostname)
+	fmt.Printf("Deployed:\t%s\n", a.Deployed)
+	fmt.Printf("LastRun: \t%s\n", a.LastRun)
 	fmt.Printf("Runner:  \t%s\n", a.Runner)
-	//fmt.Printf("Pid:     \t%d\n",a.Pid)
 }

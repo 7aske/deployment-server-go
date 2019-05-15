@@ -83,11 +83,10 @@ func NewServer() {
 		reader := bufio.NewReader(os.Stdin)
 		for {
 			line, _, _ := reader.ReadLine()
-			args := strings.Split(string(line), " ", )
+			args := strings.Split(string(line), " ")
 			cli.ParseCommand(args...)
 			cli.lastCommand = line
 		}
-
 	} else {
 		for {
 			time.Sleep(time.Second)

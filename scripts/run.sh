@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./bin/deployment-server
+./bin/deployment-server "$@"
