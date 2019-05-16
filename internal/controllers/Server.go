@@ -85,7 +85,6 @@ func NewServer() {
 			line, _, _ := reader.ReadLine()
 			args := strings.Split(string(line), " ")
 			cli.ParseCommand(args...)
-			cli.lastCommand = line
 		}
 	} else {
 		for {
