@@ -8,6 +8,7 @@ install:
 	go get github.com/dgrijalva/jwt-go
 	go get github.com/go-ini/ini
 	go get github.com/pkg/errors
+	go get github.com/teris-io/shortid
 
 build: cmd/deployment-server/main.go ./client/package.json
 	mkdir -p bin
