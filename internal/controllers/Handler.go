@@ -369,7 +369,9 @@ func (h *Handler) HandleAuth(w http.ResponseWriter, r *http.Request) {
 			http.SetCookie(w, &cookie)
 			http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 		} else {
-			http.Redirect(w, r, "/auth", http.StatusTemporaryRedirect)
+			w.WriteHeader(http.StatusUnauthorized)
+			length, _ := w.Write(utils.RenderLoginPage())
+			w.Header().Set("Content-Length", strconv.Itoa(length))
 		}
 	case http.MethodGet:
 		if cookie, err := r.Cookie("Authorization"); err == nil {
