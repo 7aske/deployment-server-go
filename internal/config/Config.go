@@ -22,6 +22,7 @@ type Config struct {
 	user        string
 	clientRoot  string
 	basicServer string
+	container   bool
 }
 
 func (c *Config) Write() {
@@ -46,6 +47,7 @@ func (c *Config) Write() {
 		cFile.Section("deployer").Key("root").Comment = "location of where the app repos are stored relative to app root"
 		cFile.Section("deployer").Key("server").Comment = "location of nodejs server script that runs 'web' apps"
 		cFile.Section("deployer").Key("hostname").Comment = "default hostname used for parsing subdomains, ignored if on local"
+		cFile.Section("deployer").Key("container").Comment = "toggle whether to use ccont containers"
 	}
 	cFile.Section("dev").Key("appsPort").SetValue(strconv.Itoa(c.appsPort))
 	cFile.Section("dev").Key("port").SetValue(strconv.Itoa(c.port))
@@ -59,6 +61,7 @@ func (c *Config) Write() {
 	cFile.Section("deployer").Key("root").SetValue(c.appsRoot)
 	cFile.Section("deployer").Key("server").SetValue(c.basicServer)
 	cFile.Section("deployer").Key("hostname").SetValue(c.hostname)
+	cFile.Section("deployer").Key("container").SetValue(strconv.FormatBool(c.container))
 
 	err = cFile.SaveTo(cFilePath)
 	if err != nil {
@@ -84,6 +87,7 @@ func (c *Config) Read() {
 		c.appsRoot = "apps"
 		c.basicServer = "server/server.js"
 		c.hostname = "127.0.0.1"
+		c.container = false
 		c.Write()
 	} else {
 		port, err := strconv.Atoi(cFile.Section("dev").Key("port").Value())
@@ -152,6 +156,9 @@ func (c *Config) Read() {
 		}
 		hostname := cFile.Section("deployer").Key("hostname").Value()
 		c.hostname = hostname
+
+		container, _ := strconv.ParseBool(cFile.Section("deployer").Key("container").Value())
+		c.container = container
 	}
 
 }
@@ -169,7 +176,6 @@ func (c *Config) SetCwd(cwd string) {
 func (c *Config) GetCwd() string {
 	return c.cwd
 }
-
 func (c *Config) SetPort(port int) {
 	c.port = port
 }
@@ -223,6 +229,12 @@ func (c *Config) SetBasicServer(server string) {
 }
 func (c *Config) GetBasicServer() string {
 	return c.basicServer
+}
+func (c *Config) SetContainer(cont bool) {
+	c.container = cont
+}
+func (c *Config) GetContainer() bool {
+	return c.container
 }
 
 //func (c *Config) SetClientRoot(clientRoot string) {

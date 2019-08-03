@@ -16,6 +16,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -263,7 +264,16 @@ func (d *Deployer) Run(appToRun *app.App) error {
 
 }
 func (d *Deployer) Kill(appToKill *app.App) error {
-	err := appToKill.GetProcess().Kill()
+	if d.config.GetContainer() {
+		mountPoint := path.Join(appToKill.GetRoot(), "ccont_server")
+		err := syscall.Unmount(mountPoint, 0)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		_ = syscall.Rmdir(mountPoint)
+
+	}
+	err := appToKill.GetProcess().Signal(syscall.SIGINT)
 	if err != nil {
 		d.logger.Log(err.Error())
 		return err
@@ -273,6 +283,7 @@ func (d *Deployer) Kill(appToKill *app.App) error {
 		d.logger.Log(err.Error())
 		return err
 	}
+
 	jApp := d.GetAppAsJSON(appToKill)
 	jApp.Pid = -1
 	d.SaveAppToJson(jApp)
@@ -382,78 +393,138 @@ func (d *Deployer) runNode(appToRun *app.App) error {
 		d.logger.Log(err.Error())
 		return err
 	}
-	node := exec.Command("node", appToRun.GetRoot(), packageJson.Main)
-	node.Dir = appToRun.GetRoot()
 	port := appToRun.GetPort()
 	if port == 0 {
 		appToRun.SetPort(d.generatePort())
 		port = appToRun.GetPort()
 	}
-	node.Env = append(node.Env, fmt.Sprintf("PORT=%d", port))
-	node.Stdout = os.Stdout
-	node.Stderr = os.Stderr
-	err = node.Start()
-	if err != nil {
-		d.logger.Log(err.Error())
-		return err
+
+	if d.config.GetContainer() {
+		ccont := exec.Command("ccont", "--copy=node-cont", appToRun.GetId(), "-c", "node", packageJson.Main)
+		ccont.Dir = appToRun.GetRoot()
+		ccont.Env = os.Environ()
+		ccont.Env = append(ccont.Env, fmt.Sprintf("CONT_PORT=%d", port))
+		ccont.Stdout = os.Stdout
+		ccont.Stderr = os.Stderr
+		err = ccont.Start()
+		if err != nil {
+			d.logger.Log(err.Error())
+			return err
+		}
+		appToRun.SetPid(ccont.Process.Pid)
+		appToRun.SetProcess(ccont.Process)
+	} else {
+		node := exec.Command("node", packageJson.Main)
+		node.Dir = appToRun.GetRoot()
+		node.Env = os.Environ()
+		node.Env = append(node.Env, fmt.Sprintf("CONT_PORT=%d", port))
+		node.Stdout = os.Stdout
+		node.Stderr = os.Stderr
+		err = node.Start()
+		if err != nil {
+			d.logger.Log(err.Error())
+			return err
+		}
+		appToRun.SetPid(node.Process.Pid)
+		appToRun.SetProcess(node.Process)
 	}
+
 	appToRun.SetLastRun(time.Now())
-	appToRun.SetPid(node.Process.Pid)
-	appToRun.SetProcess(node.Process)
 	d.AddApp(appToRun)
 	d.SaveAppToJson(d.GetAppAsJSON(appToRun))
 	d.logger.Log(fmt.Sprintf("run - starting %s server with pid - %d on port %d", appToRun.GetRunner(), appToRun.GetPid(), appToRun.GetPort()))
 	return nil
 }
 func (d *Deployer) runWeb(appToRun *app.App) error {
-	node := exec.Command("node", path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetBasicServer()))
-	node.Dir = appToRun.GetRoot()
 	port := appToRun.GetPort()
 	if port == 0 {
 		appToRun.SetPort(d.generatePort())
 		port = appToRun.GetPort()
 	}
-	node.Env = append(node.Env, fmt.Sprintf("PORT=%d", port))
-	node.Stdout = os.Stdout
-	node.Stderr = os.Stderr
-	err := node.Start()
-	if err != nil {
-		fmt.Println(err)
-		return err
+	serverPath := path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetBasicServer())
+	if d.config.GetContainer() {
+		mountPoint := path.Join(appToRun.GetRoot(), "ccont_server")
+		_ = os.Mkdir(mountPoint, 0755)
+		err := syscall.Mount(path.Dir(serverPath), mountPoint, "tmpfs", syscall.MS_BIND, "")
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		ccont := exec.Command("ccont", "--rbind", "--copy=node-cont", appToRun.GetId(), "-c", "node", "ccont_server/server.js")
+		ccont.Dir = appToRun.GetRoot()
+		ccont.Env = os.Environ()
+		ccont.Env = append(ccont.Env, fmt.Sprintf("CONT_PORT=%d", port))
+		ccont.Stdout = os.Stdout
+		ccont.Stderr = os.Stderr
+		err = ccont.Start()
+		if err != nil {
+			d.logger.Log(err.Error())
+			return err
+		}
+		appToRun.SetPid(ccont.Process.Pid)
+		appToRun.SetProcess(ccont.Process)
+	} else {
+		node := exec.Command("node", path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetBasicServer()))
+		node.Dir = appToRun.GetRoot()
+		node.Env = append(node.Env, fmt.Sprintf("PORT=%d", port))
+		node.Stdout = os.Stdout
+		node.Stderr = os.Stderr
+		err := node.Start()
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+		appToRun.SetPid(node.Process.Pid)
+		appToRun.SetProcess(node.Process)
 	}
 	appToRun.SetLastRun(time.Now())
-	appToRun.SetPid(node.Process.Pid)
-	appToRun.SetProcess(node.Process)
 	d.AddApp(appToRun)
 	d.SaveAppToJson(d.GetAppAsJSON(appToRun))
 	d.logger.Log(fmt.Sprintf("run - starting %s server with pid - %d on port %d", appToRun.GetRunner(), appToRun.GetPid(), appToRun.GetPort()))
 	return nil
 }
 func (d *Deployer) runPython(appToRun *app.App) error {
-	python := exec.Command("python3", "__main__.py")
-	python.Dir = appToRun.GetRoot()
 	port := appToRun.GetPort()
 	if port == 0 {
 		appToRun.SetPort(d.generatePort())
 		port = appToRun.GetPort()
 	}
-	python.Env = append(python.Env, fmt.Sprintf("PORT=%d", port))
-	python.Stdout = os.Stdout
-	python.Stderr = os.Stderr
-	err := python.Start()
-	if err != nil {
-		d.logger.Log(err.Error())
-		return err
+	if d.config.GetContainer() {
+		ccont := exec.Command("ccont", "--copy=python-cont", appToRun.GetId(), "-c", "python3", "__main__.py")
+		ccont.Dir = appToRun.GetRoot()
+		ccont.Env = os.Environ()
+		ccont.Env = append(ccont.Env, fmt.Sprintf("CONT_PORT=%d", port))
+		ccont.Stdout = os.Stdout
+		ccont.Stderr = os.Stderr
+		err := ccont.Start()
+		if err != nil {
+			d.logger.Log(err.Error())
+			return err
+		}
+		appToRun.SetPid(ccont.Process.Pid)
+		appToRun.SetProcess(ccont.Process)
+	} else {
+		python := exec.Command("python3", "__main__.py")
+		python.Dir = appToRun.GetRoot()
+		python.Env = append(python.Env, fmt.Sprintf("PORT=%d", port))
+		python.Stdout = os.Stdout
+		python.Stderr = os.Stderr
+		err := python.Start()
+		if err != nil {
+			d.logger.Log(err.Error())
+			return err
+		}
+		appToRun.SetPid(python.Process.Pid)
+		appToRun.SetProcess(python.Process)
 	}
 	appToRun.SetLastRun(time.Now())
-	appToRun.SetPid(python.Process.Pid)
-	appToRun.SetProcess(python.Process)
 	d.AddApp(appToRun)
 	d.SaveAppToJson(d.GetAppAsJSON(appToRun))
 	d.logger.Log(fmt.Sprintf("run - starting %s server with pid - %d on port %d", appToRun.GetRunner(), appToRun.GetPid(), appToRun.GetPort()))
 	return nil
 }
 func (d *Deployer) runPythonFlask() {
+	// TODO
+	panic(errors.New("not implemented yet"))
 }
 
 // load apps from json file into appsD array
@@ -528,7 +599,7 @@ func (d *Deployer) generatePort() int {
 func (d *Deployer) isPortUsed(port int) bool {
 	if port < 1024 {
 		return true
-	} else if port == d.port{
+	} else if port == d.port {
 		return true
 	}
 	for _, a := range d.GetDeployedApps() {

@@ -61,7 +61,11 @@ root     = apps
 server   = server/server.js
 ; default hostname used for parsing subdomains, ignored if on local
 hostname = 127.0.0.1
+; toggle whether to use ccont containers
+container = true
 ```
+
+You can containerize apps using [ccont](https://github.com/7aske/ccont). Depoloyer will automatically run the apps inside those containers. Keep in mind that you have to have containers already set-up properly. For node applications `node-cont` should be available to `cont` which should have `node` and `npm` installed. Same goes for `python-cont` for python projects. Web projects will use `node-cont`. For more infor on how to set up containers visit the before-mentioned repository.
 
 ### Additional options
 

@@ -6,6 +6,7 @@ import (
 	"../utils"
 	"bufio"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,6 +22,13 @@ func NewServer() {
 	cli := NewCli(&deployer)
 	routerHandler := NewRouterHandler(&deployer, cfg)
 	devMux := http.NewServeMux()
+
+	if (cfg.GetAppsPort() < 1000 || cfg.GetPort() < 1000) && os.Getuid() != 0 {
+		log.Fatal("error starting server - selected ports require root access")
+	}
+	if cfg.GetContainer() && os.Getuid() != 0 {
+		log.Fatal("error starting server - containerization requires root access")
+	}
 
 	devMux.HandleFunc("/api/deploy", func(writer http.ResponseWriter, request *http.Request) {
 		go func() {
@@ -50,7 +58,7 @@ func NewServer() {
 		err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.GetPort()), devMux)
 		if err != nil {
 			l.Log(fmt.Sprintf("error starting server on port %d", cfg.GetPort()))
-			panic(fmt.Sprintf("error starting server on port %d", cfg.GetPort()))
+			log.Fatal(fmt.Sprintf("error starting server on port %d", cfg.GetPort()))
 		}
 	}()
 	go func() {
@@ -58,7 +66,7 @@ func NewServer() {
 		err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.GetRouterPort()), routerMux)
 		if err != nil {
 			l.Log(fmt.Sprintf("error starting server on port %d", cfg.GetRouterPort()))
-			panic(fmt.Sprintf("error starting server on port %d", cfg.GetRouterPort()))
+			log.Fatal(fmt.Sprintf("error starting server on port %d", cfg.GetRouterPort()))
 		}
 	}()
 
