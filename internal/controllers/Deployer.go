@@ -416,7 +416,6 @@ func (d *Deployer) runNode(appToRun *app.App) error {
 	} else {
 		node := exec.Command("node", packageJson.Main)
 		node.Dir = appToRun.GetRoot()
-		node.Env = os.Environ()
 		node.Env = append(node.Env, fmt.Sprintf("CONT_PORT=%d", port))
 		node.Stdout = os.Stdout
 		node.Stderr = os.Stderr
