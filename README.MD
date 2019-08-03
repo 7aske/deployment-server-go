@@ -9,7 +9,7 @@ Custom web-server tooled to easily deploy other web based projects (apps) using 
 Project is being managed by `make` since Golang is, to me, pretty weird when it comes to the whole GOROOT thing. In order to install dependencies (NOTE: GOROOT must be properly set up but the project doesn't have to be in it) run:
 
 ```
-make install
+make dep
 ```
 
 After installing dependencies build the server using:
@@ -22,6 +22,12 @@ Or just do this if you want a dynamic and faster compilation:
 
 ```
 make run
+```
+
+Make deplpoyment-server available in terminal by linking the binary to /usr/bin
+
+```
+make install
 ```
 
 ## Usage
@@ -55,10 +61,6 @@ user   = admin
 pass   = admin
 
 [deployer]
-; location of where the app repos are stored relative to app root
-root     = apps
-; location of nodejs server script that runs 'web' apps
-server   = server/server.js
 ; default hostname used for parsing subdomains, ignored if on local
 hostname = 127.0.0.1
 ; toggle whether to use ccont containers
