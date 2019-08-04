@@ -97,7 +97,7 @@ func (d *Deployer) GetAppAsJSON(a *app.App) app.AppJSON {
 func (d *Deployer) GetAppsAsJSON() []app.AppJSON {
 	var arr []app.AppJSON
 	for _, a := range d.apps {
-		app := app.AppJSON{
+		a := app.AppJSON{
 			Id:          a.Id,
 			Repo:        a.Repo,
 			Name:        a.Name,
@@ -111,8 +111,8 @@ func (d *Deployer) GetAppsAsJSON() []app.AppJSON {
 			Runner:      a.Runner,
 			Pid:         a.Pid,
 		}
-		app.Uptime = time.Now().Sub(a.LastRun).String()
-		arr = append(arr, app)
+		a.Uptime = time.Now().Sub(a.LastRun).String()
+		arr = append(arr, a)
 	}
 	return arr
 }

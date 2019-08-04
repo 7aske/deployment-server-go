@@ -5,35 +5,75 @@ import (
 	"github.com/go-ini/ini"
 	"log"
 	"os"
+	"os/exec"
 	"path"
-	"path/filepath"
 	"strconv"
+	"strings"
+)
+
+const (
+	APPS_ROOT    = "apps"
+	BASIC_SERVER = "server/server.js"
+	CONFIG_PATH = "config/config.cfg"
 )
 
 type Config struct {
 	cwd         string
+	clientRoot  string
 	port        int
 	appsPort    int
-	hostname    string
 	routerPort  int
-	appsRoot    string
 	secret      []byte
 	pass        string
 	user        string
-	clientRoot  string
 	basicServer string
+	appsRoot    string
+	hostname    string
 	container   bool
 }
 
+func New() *Config {
+	config := Config{}
+	var absPath string
+	if path.IsAbs(os.Args[0]) {
+		source, err := os.Readlink(os.Args[0])
+		if err != nil{
+			absPath = os.Args[0]
+		} else {
+			absPath = source
+		}
+	} else {
+		out, err := exec.Command("which", os.Args[0]).Output()
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+		link := strings.TrimRight(string(out), "\n")
+		source, err := os.Readlink(link)
+		if err != nil{
+			absPath = link
+		} else {
+			absPath = source
+		}
+	}
+	config.SetCwd(path.Dir(path.Dir(absPath)))
+	config.Read()
+	return &config
+}
+
 func (c *Config) Write() {
-	cwd, _ := os.Getwd()
-	cFilePath := path.Join(cwd, "config", "server.cfg")
+	cFilePath := path.Join(c.GetCwd(), CONFIG_PATH)
 	cFile, err := ini.Load(cFilePath)
 	if err != nil {
 		_ = os.MkdirAll(path.Dir(cFilePath), 0775)
 		fp, _ := os.Create(cFilePath)
 		_, _ = fp.Write([]byte{})
 		_ = fp.Close()
+		if os.Getuid() == 0 {
+			uid, _ := strconv.Atoi(os.Getenv("SUDO_UID"))
+			gid, _ := strconv.Atoi(os.Getenv("SUDO_GID"))
+			_ = os.Chown(cFilePath, uid, gid)
+		}
+
 		cFile, err = ini.Load(cFilePath)
 		if err != nil {
 			log.Fatal("unable to open ", cFilePath)
@@ -44,8 +84,8 @@ func (c *Config) Write() {
 		cFile.Section("router").Key("port").Comment = "router port"
 		cFile.Section("auth").Key("secret").Comment = "hash secret"
 		cFile.Section("auth").Key("user").Comment = "username and password required to log to dev server"
-		cFile.Section("deployer").Key("root").Comment = "location of where the app repos are stored relative to app root"
-		cFile.Section("deployer").Key("server").Comment = "location of nodejs server script that runs 'web' apps"
+		//cFile.Section("deployer").Key("root").Comment = "location of where the app repos are stored relative to app root"
+		//cFile.Section("deployer").Key("server").Comment = "location of nodejs server script that runs 'web' apps"
 		cFile.Section("deployer").Key("hostname").Comment = "default hostname used for parsing subdomains, ignored if on local"
 		cFile.Section("deployer").Key("container").Comment = "toggle whether to use ccont containers"
 	}
@@ -58,37 +98,24 @@ func (c *Config) Write() {
 	cFile.Section("auth").Key("user").SetValue(string(c.user))
 	cFile.Section("auth").Key("pass").SetValue(string(c.pass))
 
-	cFile.Section("deployer").Key("root").SetValue(c.appsRoot)
-	cFile.Section("deployer").Key("server").SetValue(c.basicServer)
+	//cFile.Section("deployer").Key("root").SetValue(c.appsRoot)
+	//cFile.Section("deployer").Key("server").SetValue(c.basicServer)
 	cFile.Section("deployer").Key("hostname").SetValue(c.hostname)
 	cFile.Section("deployer").Key("container").SetValue(strconv.FormatBool(c.container))
 
 	err = cFile.SaveTo(cFilePath)
 	if err != nil {
-		fmt.Println("error saving config")
+		fmt.Println("error saving config", err.Error())
 	}
 }
 
 func (c *Config) Read() {
 	cwd, _ := os.Getwd()
-	cFilePath := path.Join(cwd, "config", "server.cfg")
+	cFilePath := path.Join(cwd, CONFIG_PATH)
 	cFile, err := ini.Load(cFilePath)
 	if err != nil {
-		fmt.Println(err)
-		c.port = 30000
-		c.appsPort = 30001
-
-		c.routerPort = 8080
-
-		c.user = "admin"
-		c.pass = "admin"
-		c.secret = []byte("secret")
-
-		c.appsRoot = "apps"
-		c.basicServer = "server/server.js"
-		c.hostname = "127.0.0.1"
-		c.container = false
-		c.Write()
+		fmt.Println("no config file found - generating default config")
+		writeDefaultConfig(c)
 	} else {
 		port, err := strconv.Atoi(cFile.Section("dev").Key("port").Value())
 		if err != nil {
@@ -131,29 +158,6 @@ func (c *Config) Read() {
 		c.secret = secret
 		c.pass = pass
 
-		pth := cFile.Section("deployer").Key("root").Value()
-		if pth == "" {
-			c.appsRoot = "apps"
-			c.Write()
-		} else {
-			if filepath.IsAbs(pth) {
-				c.appsRoot = path.Dir(pth)
-			} else {
-				c.appsRoot = pth
-			}
-		}
-		server := cFile.Section("deployer").Key("server").Value()
-		if server == "" {
-			c.basicServer = "server/server.js"
-			c.Write()
-		} else {
-			// TODO: this is probably wrong
-			if filepath.IsAbs(server) {
-				c.basicServer = path.Base(server) + "/server.js"
-			} else {
-				c.basicServer = server
-			}
-		}
 		hostname := cFile.Section("deployer").Key("hostname").Value()
 		c.hostname = hostname
 
@@ -163,13 +167,6 @@ func (c *Config) Read() {
 
 }
 
-func LoadConfig() *Config {
-	config := Config{}
-	cwd, _ := os.Getwd()
-	config.SetCwd(cwd)
-	config.Read()
-	return &config
-}
 func (c *Config) SetCwd(cwd string) {
 	c.cwd = cwd
 }
@@ -206,12 +203,7 @@ func (c *Config) SetSecret(secret []byte) {
 func (c *Config) GetSecret() []byte {
 	return c.secret
 }
-func (c *Config) SetAppsRoot(pth string) {
-	c.appsRoot = pth
-}
-func (c *Config) GetAppsRoot() string {
-	return c.appsRoot
-}
+
 func (c *Config) SetPass(pass string) {
 	c.pass = pass
 }
@@ -224,7 +216,13 @@ func (c *Config) SetUser(user string) {
 func (c *Config) GetUser() string {
 	return c.user
 }
-func (c *Config) SetBasicServer(server string) {
+func (c *Config) setAppsRoot(pth string) {
+	c.appsRoot = pth
+}
+func (c *Config) GetAppsRoot() string {
+	return c.appsRoot
+}
+func (c *Config) setBasicServer(server string) {
 	c.basicServer = server
 }
 func (c *Config) GetBasicServer() string {
@@ -237,9 +235,19 @@ func (c *Config) GetContainer() bool {
 	return c.container
 }
 
-//func (c *Config) SetClientRoot(clientRoot string) {
-//	c.clientRoot = clientRoot
-//}
-//func (c *Config) GetClientRoot() string {
-//	return c.clientRoot
-//}
+func writeDefaultConfig(c *Config) {
+	c.port = 30000
+	c.appsPort = 30001
+
+	c.routerPort = 8080
+
+	c.user = "admin"
+	c.pass = "admin"
+	c.secret = []byte("secret")
+
+	c.appsRoot = APPS_ROOT
+	c.basicServer = BASIC_SERVER
+	c.hostname = "127.0.0.1"
+	c.container = false
+	c.Write()
+}

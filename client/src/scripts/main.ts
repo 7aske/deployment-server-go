@@ -89,7 +89,7 @@ class PopupDialog {
 	private popup: HTMLElement | null;
 	private readonly backdrop: HTMLElement | null;
 	private store: Store;
-
+	
 	constructor(store: Store) {
 		this.store = store;
 		this.initStates();

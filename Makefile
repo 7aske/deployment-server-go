@@ -7,7 +7,7 @@ FLAGS=-a -v -ldflags '-w -extldflags "-static"'
 default: build
 
 install:
-	sudo ln -sf $(shell pwd)/$(OUT)/$(NAME /usr/bin/$(NAME)
+	sudo ln -sf $(shell pwd)/$(OUT)/$(NAME) /usr/bin/$(NAME)
 
 dep:
 	go get github.com/dgrijalva/jwt-go
