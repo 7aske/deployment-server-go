@@ -40,7 +40,7 @@ This will generate the default config file and test run the server. Default port
 
 ### Config file
 
-`config/server.cfg`
+`config/config.cfg`
 
 ```ini
 [dev]

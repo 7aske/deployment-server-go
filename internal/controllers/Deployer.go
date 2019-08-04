@@ -35,7 +35,7 @@ type PackageJSON struct {
 	Main string `json:"main"`
 }
 
-func NewDeployer(cfg *config.Config) Deployer {
+func New(cfg *config.Config) Deployer {
 	d := Deployer{}
 	d.config = cfg
 	d.port = cfg.GetAppsPort()
@@ -575,14 +575,14 @@ func (d *Deployer) initAppsJson() {
 		emptyArr, _ := json.Marshal(&AppsJSON{Apps: []app.AppJSON{}})
 		err := ioutil.WriteFile(pth, emptyArr, 0775)
 		if err != nil {
-			fmt.Println("json init - " + err.Error())
+			fmt.Println("apps json init failed - " + err.Error())
 		}
 	} else {
 		folders, _ := ioutil.ReadDir(path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetAppsRoot()))
 		appsD := d.GetDeployedApps()
 		for _, a := range appsD {
 			if !utils.ContainsFile(a.Name, &folders) {
-				fmt.Println(a.Name)
+				fmt.Println("not found ", a.Name)
 				d.RemoveAppFromJson(a)
 			}
 		}

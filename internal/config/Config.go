@@ -1,14 +1,13 @@
 package config
 
 import (
+	"../utils"
 	"fmt"
 	"github.com/go-ini/ini"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"strconv"
-	"strings"
 )
 
 const (
@@ -34,29 +33,15 @@ type Config struct {
 
 func New() *Config {
 	config := Config{}
-	var absPath string
-	if path.IsAbs(os.Args[0]) {
-		source, err := os.Readlink(os.Args[0])
-		if err != nil{
-			absPath = os.Args[0]
-		} else {
-			absPath = source
-		}
-	} else {
-		out, err := exec.Command("which", os.Args[0]).Output()
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-		link := strings.TrimRight(string(out), "\n")
-		source, err := os.Readlink(link)
-		if err != nil{
-			absPath = link
-		} else {
-			absPath = source
-		}
-	}
+	absPath := utils.GetAbsDir(os.Args[0])
 	config.SetCwd(path.Dir(path.Dir(absPath)))
+	setDefaultConfig(&config)
 	config.Read()
+
+	if config.container {
+		config.SetContainer(utils.VerifyCcont())
+	}
+	fmt.Println(config.container)
 	return &config
 }
 
@@ -84,10 +69,10 @@ func (c *Config) Write() {
 		cFile.Section("router").Key("port").Comment = "router port"
 		cFile.Section("auth").Key("secret").Comment = "hash secret"
 		cFile.Section("auth").Key("user").Comment = "username and password required to log to dev server"
-		//cFile.Section("deployer").Key("root").Comment = "location of where the app repos are stored relative to app root"
-		//cFile.Section("deployer").Key("server").Comment = "location of nodejs server script that runs 'web' apps"
 		cFile.Section("deployer").Key("hostname").Comment = "default hostname used for parsing subdomains, ignored if on local"
 		cFile.Section("deployer").Key("container").Comment = "toggle whether to use ccont containers"
+		//cFile.Section("deployer").Key("root").Comment = "location of where the app repos are stored relative to app root"
+		//cFile.Section("deployer").Key("server").Comment = "location of nodejs server script that runs 'web' apps"
 	}
 	cFile.Section("dev").Key("appsPort").SetValue(strconv.Itoa(c.appsPort))
 	cFile.Section("dev").Key("port").SetValue(strconv.Itoa(c.port))
@@ -98,10 +83,10 @@ func (c *Config) Write() {
 	cFile.Section("auth").Key("user").SetValue(string(c.user))
 	cFile.Section("auth").Key("pass").SetValue(string(c.pass))
 
-	//cFile.Section("deployer").Key("root").SetValue(c.appsRoot)
-	//cFile.Section("deployer").Key("server").SetValue(c.basicServer)
 	cFile.Section("deployer").Key("hostname").SetValue(c.hostname)
 	cFile.Section("deployer").Key("container").SetValue(strconv.FormatBool(c.container))
+	//cFile.Section("deployer").Key("root").SetValue(c.appsRoot)
+	//cFile.Section("deployer").Key("server").SetValue(c.basicServer)
 
 	err = cFile.SaveTo(cFilePath)
 	if err != nil {
@@ -115,7 +100,8 @@ func (c *Config) Read() {
 	cFile, err := ini.Load(cFilePath)
 	if err != nil {
 		fmt.Println("no config file found - generating default config")
-		writeDefaultConfig(c)
+		setDefaultConfig(c)
+		c.Write()
 	} else {
 		port, err := strconv.Atoi(cFile.Section("dev").Key("port").Value())
 		if err != nil {
@@ -235,7 +221,7 @@ func (c *Config) GetContainer() bool {
 	return c.container
 }
 
-func writeDefaultConfig(c *Config) {
+func setDefaultConfig(c *Config) {
 	c.port = 30000
 	c.appsPort = 30001
 
@@ -249,5 +235,4 @@ func writeDefaultConfig(c *Config) {
 	c.basicServer = BASIC_SERVER
 	c.hostname = "127.0.0.1"
 	c.container = false
-	c.Write()
 }

@@ -17,7 +17,7 @@ import (
 func NewServer() {
 	l := logger.NewLogger(logger.LOG_SERVER)
 	cfg := config.New()
-	deployer := NewDeployer(cfg)
+	deployer := New(cfg)
 	handler := NewHandler(cfg, &deployer)
 	cli := NewCli(&deployer)
 	routerHandler := NewRouterHandler(&deployer, cfg)

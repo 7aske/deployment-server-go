@@ -3,7 +3,10 @@ package utils
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"path"
 	"regexp"
+	"strings"
 )
 
 func RenderLoginPage() []byte {
@@ -57,7 +60,6 @@ func RenderLoginPage() []byte {
 </html>`)
 }
 
-
 func byteCountBinary(b int64) string {
 	const unit = 1024
 	if b < unit {
@@ -70,7 +72,6 @@ func byteCountBinary(b int64) string {
 	}
 	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
 }
-
 
 func ParseArgs(q string) (string, bool) {
 	index := Contains(q, &os.Args)
@@ -91,7 +92,6 @@ func Contains(q string, s *[]string) int {
 	return -1
 }
 
-
 func ContainsFile(q string, dir *[]os.FileInfo) bool {
 	for _, file := range *dir {
 		if file.Name() == q {
@@ -106,14 +106,41 @@ func PrintHelp() {
 	fmt.Println("-i		interactive shell access")
 }
 
-
 func GetNameFromRepo(repo string) string {
 	reg, _ := regexp.Compile("([^/]+$)")
 	return string(reg.Find([]byte(repo)))
 }
 
-func MakeDirIfNotExist(pth string){
+func MakeDirIfNotExist(pth string) {
 	if _, err := os.Stat(pth); err != nil {
 		_ = os.MkdirAll(pth, 0775)
 	}
+}
+
+func GetAbsDir(pth string) string {
+	if path.IsAbs(pth) {
+		source, err := os.Readlink(pth)
+		if err != nil {
+			return os.Args[0]
+		} else {
+			return source
+		}
+	} else {
+		out, err := exec.Command("which", pth).Output()
+		if err != nil {
+			return ""
+		}
+		link := strings.TrimRight(string(out), "\n")
+		source, err := os.Readlink(link)
+		if err != nil {
+			return link
+		} else {
+			return source
+		}
+	}
+}
+
+func VerifyCcont() bool {
+	fmt.Println("verifying ccont")
+	return exec.Command("ccont", "-l").Run()  == nil
 }

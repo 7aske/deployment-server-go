@@ -25,6 +25,6 @@ build-arm: cmd/deployment-server/main.go ./client/package.json
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build $(FLAGS) -o $(OUT)/$(NAME) $(MAIN) && \
 	npm -C $(CLIENT_DIR) install
 
-run: $(OUT)/deployment-server
+run: $(OUT)/deployment_server
 	go run cmd/deployment-server/main.go
 
