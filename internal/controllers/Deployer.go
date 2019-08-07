@@ -43,7 +43,7 @@ func New(cfg *config.Config) Deployer {
 	utils.MakeDirIfNotExist(path.Join(cfg.GetCwd(), cfg.GetAppsRoot()))
 	d.initAppsJson()
 	d.GetDeployedApps()
-	d.runners = []string{"node", "web", "python"}
+	d.runners = []string{"node", "web", "python", "flask"}
 	d.logger = logger.NewLogger(logger.LOG_DEPLOYER)
 	return d
 }
@@ -235,6 +235,11 @@ func (d *Deployer) Install(appToInstall *app.App) error {
 			d.logger.Log("install - npm install finished " + appToInstall.GetName())
 			return nil
 		}
+	case "python":
+		return nil
+	case "flask":
+		return nil
+
 	default:
 		err := errors.New("install - unknown runner " + appToInstall.GetRunner())
 		d.logger.Log(err.Error())
@@ -256,6 +261,8 @@ func (d *Deployer) Run(appToRun *app.App) error {
 		return d.runWeb(appToRun)
 	case "python":
 		return d.runPython(appToRun)
+	case "flask":
+		return d.runPythonFlask(appToRun)
 	default:
 		err := errors.New("run - unknown runner " + appToRun.GetRunner())
 		d.logger.Log(err.Error())
@@ -521,9 +528,61 @@ func (d *Deployer) runPython(appToRun *app.App) error {
 	d.logger.Log(fmt.Sprintf("run - starting %s server with pid - %d on port %d", appToRun.GetRunner(), appToRun.GetPid(), appToRun.GetPort()))
 	return nil
 }
-func (d *Deployer) runPythonFlask() {
-	// TODO
-	panic(errors.New("not implemented yet"))
+func (d *Deployer) runPythonFlask(appToRun *app.App) error {
+	port := appToRun.GetPort()
+	if port == 0 {
+		appToRun.SetPort(d.generatePort())
+		port = appToRun.GetPort()
+	}
+	if d.config.GetContainer() {
+		pip := exec.Command("ccont", "--copy=flask-cont", appToRun.GetId(), "-c", "pip3", "install", "-r", "requirements.txt")
+		pip.Dir = appToRun.GetRoot()
+		pip.Stdout = os.Stdout
+		pip.Stderr = os.Stderr
+		err := pip.Run()
+		ccont := exec.Command("ccont", appToRun.GetId(), "-c", "flask", "run", "--host=\"0.0.0.0\"")
+		ccont.Dir = appToRun.GetRoot()
+		ccont.Env = os.Environ()
+		ccont.Env = append(ccont.Env, fmt.Sprintf("CONT_FLASK_RUN_PORT=%d", port))
+		ccont.Env = append(ccont.Env, "CONT_LC_ALL=en_US.utf-8")
+		ccont.Env = append(ccont.Env, "CONT_LANG=en_US.utf-8")
+		ccont.Stdout = os.Stdout
+		ccont.Stderr = os.Stderr
+		err = ccont.Start()
+		if err != nil {
+			d.logger.Log(err.Error())
+			return err
+		}
+		appToRun.SetPid(ccont.Process.Pid)
+		appToRun.SetProcess(ccont.Process)
+	} else {
+		pip := exec.Command("pip3", "install", "-r", "requirements.txt")
+		pip.Dir = appToRun.GetRoot()
+		pip.Stdout = os.Stdout
+		pip.Stderr = os.Stderr
+		err := pip.Run()
+		if err != nil {
+			d.logger.Log(err.Error())
+			return err
+		}
+		python := exec.Command("flask", "run", "--host=\"0.0.0.0\"")
+		python.Dir = appToRun.GetRoot()
+		python.Env = append(python.Env, fmt.Sprintf("FLASK_RUN_PORT=%d", port))
+		python.Stdout = os.Stdout
+		python.Stderr = os.Stderr
+		err = python.Start()
+		if err != nil {
+			d.logger.Log(err.Error())
+			return err
+		}
+		appToRun.SetPid(python.Process.Pid)
+		appToRun.SetProcess(python.Process)
+	}
+	appToRun.SetLastRun(time.Now())
+	d.AddApp(appToRun)
+	d.SaveAppToJson(d.GetAppAsJSON(appToRun))
+	d.logger.Log(fmt.Sprintf("run - starting %s server with pid - %d on port %d", appToRun.GetRunner(), appToRun.GetPid(), appToRun.GetPort()))
+	return nil
 }
 
 // load apps from json file into appsD array

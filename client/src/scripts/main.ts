@@ -539,6 +539,9 @@ function getRunnerIcon(runner: string): string {
 		case "python":
 			r = "python";
 			break;
+		case "flask":
+			r = "python";
+			break;
 	}
 	return `<i class="fab fa-${r} fa-2x"></i>`;
 }
@@ -635,6 +638,7 @@ function settingsTemplate(app: App): string {
 					<option ${app.runner == "node" ? "selected" : ""} value="node">Node</option>
 					<option ${app.runner == "web" ? "selected" : ""} value="web">Web</option>
 					<option ${app.runner == "python" ? "selected" : ""} value="python">Python</option>
+					<option ${app.runner == "flask" ? "selected" : ""} value="flask">Flask</option>
 				</select>
 			</div>
 			<div class="input-group input-group-sm mb-3">
