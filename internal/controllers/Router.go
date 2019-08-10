@@ -16,10 +16,10 @@ import (
 )
 
 type RouterHandler struct {
-	deployer                  *Deployer
-	config                    *config.Config
-	hosts                     map[string]string
-	logger                    *logger.Logger
+	deployer *Deployer
+	config   *config.Config
+	hosts    map[string]string
+	logger   *logger.Logger
 }
 
 func NewRouterHandler(d *Deployer, c *config.Config) *RouterHandler {
@@ -38,7 +38,7 @@ func (rh *RouterHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Scheme == "https" {
 		protocol = "https://"
 	}
-	host := r.Host
+	host := strings.Split(r.Host, ":")[0]
 	newurl := ""
 	if host == rh.config.GetHostname() || strings.HasPrefix(host, "dev.") {
 		newurl = protocol + host + ":" + strconv.Itoa(rh.config.GetPort())
@@ -48,7 +48,7 @@ func (rh *RouterHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 	if newurl == protocol+host+":" {
 		httpresp.ResponseNotFound(w)
 	} else {
-		http.Redirect(w, r, newurl, http.StatusPermanentRedirect)
+		http.Redirect(w, r, newurl, http.StatusTemporaryRedirect)
 	}
 }
 func (rh *RouterHandler) HandleIndex(w http.ResponseWriter, r *http.Request) {
@@ -57,12 +57,12 @@ func (rh *RouterHandler) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Scheme == "https" {
 		protocol = "https://"
 	}
-
+	host := strings.Split(r.Host, ":")[0]
 	var newurl string
-	if strings.HasPrefix(r.Host, "dev.") {
-		newurl = protocol + "127.0.0.1" + ":" + strconv.Itoa(rh.config.GetPort())
-	} else if proxiedPort, ok := rh.hosts[r.Host]; ok {
-		newurl = protocol + "127.0.0.1" + ":" + proxiedPort
+	if strings.HasPrefix(r.Host, "dev.") || host == rh.config.GetHostname() {
+		newurl = protocol + host + ":" + strconv.Itoa(rh.config.GetPort())
+	} else if proxiedPort, ok := rh.hosts[host]; ok {
+		newurl = protocol + host + ":" + proxiedPort
 	} else {
 		httpresp.ResponseNotFound(w)
 		return
