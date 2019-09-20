@@ -87,7 +87,7 @@ func NewServer() {
 	}()
 
 	if utils.Contains("-i", &os.Args) != -1 {
-		fmt.Println("type \"help\" from help...")
+		fmt.Println("type \"help\" or \"?\" from more information")
 		reader := bufio.NewReader(os.Stdin)
 		for {
 			line, _, _ := reader.ReadLine()

@@ -71,8 +71,6 @@ func (c *Config) Write() {
 		cFile.Section("auth").Key("user").Comment = "username and password required to log to dev server"
 		cFile.Section("deployer").Key("hostname").Comment = "default hostname used for parsing subdomains, ignored if on local"
 		cFile.Section("deployer").Key("container").Comment = "toggle whether to use ccont containers"
-		//cFile.Section("deployer").Key("root").Comment = "location of where the app repos are stored relative to app root"
-		//cFile.Section("deployer").Key("server").Comment = "location of nodejs server script that runs 'web' apps"
 	}
 	cFile.Section("dev").Key("appsPort").SetValue(strconv.Itoa(c.appsPort))
 	cFile.Section("dev").Key("port").SetValue(strconv.Itoa(c.port))
@@ -85,8 +83,6 @@ func (c *Config) Write() {
 
 	cFile.Section("deployer").Key("hostname").SetValue(c.hostname)
 	cFile.Section("deployer").Key("container").SetValue(strconv.FormatBool(c.container))
-	//cFile.Section("deployer").Key("root").SetValue(c.appsRoot)
-	//cFile.Section("deployer").Key("server").SetValue(c.basicServer)
 
 	err = cFile.SaveTo(cFilePath)
 	if err != nil {

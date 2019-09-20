@@ -3,9 +3,12 @@ package controllers
 import (
 	"../app"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
+
+const HELP_FORMAT = "%-10s\t%-20s\t%s\n"
 
 type Cli struct {
 	deployer *Deployer
@@ -17,9 +20,11 @@ func NewCli(d *Deployer) *Cli {
 func (c *Cli) ParseCommand(args ...string) {
 	if len(args) > 0 {
 		switch args[0] {
-		case "help":
+		case "help", "?":
 			printHelp()
-		case "deploy":
+		case "quit", "exit":
+			os.Exit(0)
+		case "deploy", "dep":
 			if len(args) < 3 {
 				fmt.Println("deploy <repo> <runner>")
 			} else if len(args) == 6 {
@@ -34,9 +39,8 @@ func (c *Cli) ParseCommand(args ...string) {
 			} else {
 				c.Run(args[1])
 			}
-		case "list":
-			fallthrough
-		case "find":
+
+		case "find", "ls", "list":
 			if len(args) == 1 {
 				c.Find("", "")
 			} else if len(args) == 2 {
@@ -58,7 +62,7 @@ func (c *Cli) ParseCommand(args ...string) {
 			} else {
 				printHelp()
 			}
-		case "remove":
+		case "remove", "rm":
 			if len(args) == 2 {
 				c.Remove(args[1])
 			} else {
@@ -76,8 +80,15 @@ func (c *Cli) ParseCommand(args ...string) {
 			} else {
 				printHelp()
 			}
+		case "config":
+			if len(args) == 3 {
+				c.Config(args[1], args[2])
+			} else {
+				printHelp()
+			}
 		default:
-			printHelp()
+			fmt.Printf("unrecognized command \"%s\"\n", args[0])
+			fmt.Println("type \"help\" or \"?\" from more information")
 		}
 	}
 }
@@ -206,19 +217,30 @@ func (c *Cli) Settings(query string, setting string) {
 	}
 }
 
+func (c *Cli) Config(s string, s2 string) {
+
+}
+
 func printHelp() {
 	// deploy run find kill remove settings
-	fmt.Println("deployment-server 0.0.1 == Nikola Tasic == github.com/7aske")
-	fmt.Printf("%-10s\t%-20s\t%s\n", "deploy", "<repo>", "deploy app from specified")
-	fmt.Printf("%-10s\t%-20s\t%s\n", "", "", "github repository")
-	fmt.Printf("%-10s\t%-20s\t%s\n", "run", "<app|id>", "run the deployed app")
-	fmt.Printf("%-10s\t%-20s\t%s\n", "", "", "with specified name or id")
-	fmt.Printf("%-10s\t%-20s\t%s\n", "find", "[dep|run] [app|id]", "list apps based on search")
-	fmt.Printf("%-10s\t%-20s\t%s\n", "", "", "terms")
-	fmt.Printf("%-10s\t%-20s\t%s\n", "kill", "<app|id>", "kill app with specified")
-	fmt.Printf("%-10s\t%-20s\t%s\n", "", "", "name or id")
-	fmt.Printf("%-10s\t%-20s\t%s\n", "remove", "<app|id>", "remove app with specified")
-	fmt.Printf("%-10s\t%-20s\t%s\n", "", "", "name or id")
-	fmt.Printf("%-10s\t%-20s\t%s\n", "settings", "<app|id> <key=value>", "change the settings of a deployed")
-	fmt.Printf("%-10s\t%-20s\t%s\n", "", "", "app based on name or id")
+	fmt.Print("deployment-server 0.0.1 == Nikola Tasic == github.com/7aske\n\n")
+	fmt.Printf(HELP_FORMAT, "deploy", "<repo-url>|<usr> <repo>", "deploy app from specified")
+	fmt.Printf(HELP_FORMAT, "", "", "github repository")
+
+	fmt.Printf(HELP_FORMAT, "run", "<app|id>", "run the deployed app")
+	fmt.Printf(HELP_FORMAT, "", "", "with specified name or id")
+
+	fmt.Printf(HELP_FORMAT, "find", "[dep|run] [app|id]", "list apps based on search")
+	fmt.Printf(HELP_FORMAT, "", "", "terms")
+
+	fmt.Printf(HELP_FORMAT, "kill", "<app|id>", "kill app with specified")
+	fmt.Printf(HELP_FORMAT, "", "", "name or id")
+
+	fmt.Printf(HELP_FORMAT, "remove", "<app|id>", "remove app with specified")
+	fmt.Printf(HELP_FORMAT, "", "", "name or id")
+
+	fmt.Printf(HELP_FORMAT, "settings", "<app|id> <key=value>", "change the settings of a deployed")
+	fmt.Printf(HELP_FORMAT, "", "", "app based on name or id")
+
+	fmt.Printf(HELP_FORMAT, "quit", "", "exits the application")
 }

@@ -18,10 +18,16 @@ After installing dependencies build the server using:
 make build
 ```
 
-Or just do this if you want a dynamic and faster compilation:
+Or just do this if you want a dynamic and faster compilation (and interactive mode):
 
 ```
 make run
+```
+
+Build/install only client side files:
+
+```
+make client
 ```
 
 Make deplpoyment-server available in terminal by linking the binary to /usr/bin
@@ -64,7 +70,7 @@ pass   = admin
 ; default hostname used for parsing subdomains, ignored if on local
 hostname = 127.0.0.1
 ; toggle whether to use ccont containers
-container = true
+container = false
 ```
 
 You can containerize apps using [ccont](https://github.com/7aske/ccont). Depoloyer will automatically run the apps inside those containers. Keep in mind that you have to have containers already set-up properly. For node applications `node-cont` should be available to `cont` which should have `node` and `npm` installed. Same goes for `python-cont` for python projects. Web projects will use `node-cont`. For more infor on how to set up containers visit the before-mentioned repository.
@@ -77,19 +83,25 @@ If you run the server with a `-i` or interactive mode you have access to quick d
 usage:
 
 deploy          <repo>                  deploy app from specified
-                                        github repository
+dep                                     github repository
 
 run             <app|id>                run the deployed app
                                         with specified name or id
 
 find            [dep|run] [app|id]      list apps based on search terms
+list
+ls
 
 kill            <app|id>                kill app with specified name or id
 
 remove          <app|id>                remove app with specified name or id
+rm
 
 settings        <app|id> <key=value>    change the settings of a deployed
                                         app based on name or id
+
+quit                                    exits the application
+exit                                    
 ```
 
 ## Web Interface
