@@ -82,26 +82,24 @@ If you run the server with a `-i` or interactive mode you have access to quick d
 ```
 usage:
 
-deploy          <repo>                  deploy app from specified
-dep                                     github repository
+deploy ,dep     <repo>                  deploy app from specified
 
-run             <app|id>                run the deployed app
+start, run      <app|id>                run the deployed app
                                         with specified name or id
 
-find            [dep|run] [app|id]      list apps based on search terms
-list
-ls
+find, list, ls  [dep|run] [app|id]      list apps based on search terms
 
 kill            <app|id>                kill app with specified name or id
 
-remove          <app|id>                remove app with specified name or id
-rm
+remove, rm      <app|id>                remove app with specified name or id
 
 settings        <app|id> <key=value>    change the settings of a deployed
                                         app based on name or id
 
-quit                                    exits the application
-exit                                    
+quit, q                                 exits the application
+exit
+
+clear, cls                              clears the screen                                 
 ```
 
 ## Web Interface

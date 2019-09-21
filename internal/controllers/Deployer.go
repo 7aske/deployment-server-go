@@ -149,24 +149,36 @@ func (d *Deployer) Deploy(repo string, runner string, hostname string, port int)
 	if utils.Contains(runner, &d.runners) == -1 {
 		err := errors.New("deploy - unknown runner " + runner)
 		d.logger.Log(err.Error())
-		return &app.App{}, err
+		return nil, err
+	}
+	repo, err := utils.AppendProtocol(repo)
+	if err != nil {
+		return nil, err
 	}
 	name := utils.GetNameFromRepo(repo)
 	a := app.NewApp(repo, name, runner)
 	a.SetRoot(path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetAppsRoot(), a.GetName()))
 	if !d.isPortUsed(port) {
 		a.SetPort(port)
+	} else if port == 0 {
+		port = d.generatePort()
+		a.SetPort(port)
+	} else {
+		err := errors.New("deploy - port already in use " + string(port))
+		d.logger.Log(err.Error())
+		return nil, err
 	}
 	a.SetHostname(hostname)
 	if _, ok := d.GetAppD(repo); !ok {
-		git := exec.Command("git", "-C", path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetAppsRoot()), "clone", repo)
-		git.Stdin = nil
-		git.Stdout = os.Stdout
-		git.Stderr = os.Stderr
-		err := git.Run()
-		if err != nil {
-			d.logger.Log(err.Error())
-			return a, err
+		gitCmd := exec.Command("git", "-C", path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetAppsRoot()), "clone", repo)
+		gitCmd.Stdin = nil
+		gitCmd.Stdout = os.Stdout
+		gitCmd.Stderr = os.Stderr
+		if err := gitCmd.Run(); err != nil {
+			if exitError, ok := err.(*exec.ExitError); ok {
+				fmt.Println(exitError)
+				return nil, err
+			}
 		}
 		a.SetId(shortid.MustGenerate())
 		a.SetDeployed(time.Now())

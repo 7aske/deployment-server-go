@@ -53,6 +53,7 @@ func NewServer() {
 	//routerMux.HandleFunc("/", routerHandler.HandleRoot)
 	routerMux.HandleFunc("/", routerHandler.HandleIndex)
 
+	l.Log(fmt.Sprintf("starting deployer with pid %d", os.Getpid()))
 	go func() {
 		l.Log(fmt.Sprintf("starting dev    server on port %d", cfg.GetPort()))
 		err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.GetPort()), devMux)
@@ -87,7 +88,7 @@ func NewServer() {
 	}()
 
 	if utils.Contains("-i", &os.Args) != -1 {
-		fmt.Println("type \"help\" or \"?\" from more information")
+		fmt.Println("type \"help\" or \"?\" from more information, \"q\" to quit")
 		reader := bufio.NewReader(os.Stdin)
 		for {
 			line, _, _ := reader.ReadLine()

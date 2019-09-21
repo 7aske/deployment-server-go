@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	url2 "net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -143,4 +144,15 @@ func GetAbsDir(pth string) string {
 func VerifyCcont() bool {
 	fmt.Println("verifying ccont")
 	return exec.Command("ccont", "-l").Run()  == nil
+}
+
+func AppendProtocol(repo string) (string, error) {
+	url, err := url2.Parse(repo)
+	if err != nil {
+		return "", err
+	}
+	if url.Scheme == "" {
+		url.Scheme = "https"
+	}
+	return url.String(), nil
 }

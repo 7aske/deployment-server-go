@@ -22,7 +22,11 @@ func (c *Cli) ParseCommand(args ...string) {
 		switch args[0] {
 		case "help", "?":
 			printHelp()
-		case "quit", "exit":
+		case "pid":
+			fmt.Println(os.Getpid())
+		case "clear", "cls":
+			fmt.Printf("\033[2J\033[2H\033[1A")
+		case "quit", "exit", "q":
 			os.Exit(0)
 		case "deploy", "dep":
 			if len(args) < 3 {
@@ -33,20 +37,19 @@ func (c *Cli) ParseCommand(args ...string) {
 			} else {
 				c.Deploy(args[1], args[2], "", 0)
 			}
-		case "run":
+		case "run", "start":
 			if len(args) < 2 {
 				printHelp()
 			} else {
 				c.Run(args[1])
 			}
-
 		case "find", "ls", "list":
 			if len(args) == 1 {
 				c.Find("", "")
 			} else if len(args) == 2 {
-				if args[1] == "dep" {
+				if args[1] == "dep" || args[1] == "deployed" {
 					c.Find("", "deployed")
-				} else if args[1] == "run" {
+				} else if args[1] == "run" || args[1] == "running" {
 					c.Find("", "running")
 				} else {
 					c.Find(args[1], "")
@@ -217,18 +220,20 @@ func (c *Cli) Settings(query string, setting string) {
 	}
 }
 
-func (c *Cli) Config(s string, s2 string) {
+func (c *Cli) Config(key string, value string) {
 
 }
 
 func printHelp() {
 	// deploy run find kill remove settings
 	fmt.Print("deployment-server 0.0.1 == Nikola Tasic == github.com/7aske\n\n")
-	fmt.Printf(HELP_FORMAT, "deploy", "<repo-url>|<usr> <repo>", "deploy app from specified")
+	fmt.Printf(HELP_FORMAT, "deploy, dep", "<repo-url>", "deploy app from specified")
 	fmt.Printf(HELP_FORMAT, "", "", "github repository")
 
 	fmt.Printf(HELP_FORMAT, "run", "<app|id>", "run the deployed app")
 	fmt.Printf(HELP_FORMAT, "", "", "with specified name or id")
+
+	fmt.Printf(HELP_FORMAT, "start", "", "run alias")
 
 	fmt.Printf(HELP_FORMAT, "find", "[dep|run] [app|id]", "list apps based on search")
 	fmt.Printf(HELP_FORMAT, "", "", "terms")
@@ -236,11 +241,16 @@ func printHelp() {
 	fmt.Printf(HELP_FORMAT, "kill", "<app|id>", "kill app with specified")
 	fmt.Printf(HELP_FORMAT, "", "", "name or id")
 
-	fmt.Printf(HELP_FORMAT, "remove", "<app|id>", "remove app with specified")
+	fmt.Printf(HELP_FORMAT, "remove, rm", "<app|id>", "remove app with specified")
 	fmt.Printf(HELP_FORMAT, "", "", "name or id")
 
 	fmt.Printf(HELP_FORMAT, "settings", "<app|id> <key=value>", "change the settings of a deployed")
 	fmt.Printf(HELP_FORMAT, "", "", "app based on name or id")
 
-	fmt.Printf(HELP_FORMAT, "quit", "", "exits the application")
+	fmt.Printf(HELP_FORMAT, "quit, q", "", "exits the application")
+	fmt.Printf(HELP_FORMAT, "exit", "", "quit alias")
+
+	fmt.Printf(HELP_FORMAT, "clear, cls", "", "clears the screen")
+
+	fmt.Printf(HELP_FORMAT, "pid", "", "returns the deployer pid")
 }
