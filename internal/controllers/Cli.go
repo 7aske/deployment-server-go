@@ -43,6 +43,12 @@ func (c *Cli) ParseCommand(args ...string) {
 			} else {
 				c.Run(args[1])
 			}
+		case "update":
+			if len(args) < 2 {
+				printHelp()
+			} else {
+				c.Update(args[1])
+			}
 		case "find", "ls", "list":
 			if len(args) == 1 {
 				c.Find("", "")
@@ -125,6 +131,24 @@ func (c *Cli) Run(query string) {
 		fmt.Println("not found")
 	}
 }
+func (c *Cli) Update(query string) {
+	if appJson, ok := c.deployer.GetAppD(query); ok {
+		a := app.NewAppFromJson(appJson)
+		if c.deployer.IsAppRunning(a) {
+			fmt.Println("already running")
+		} else {
+			err := c.deployer.Update(a)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+		fmt.Printf("updated - %s from %s\n", a.GetName(), a.GetRepo())
+	} else {
+		fmt.Println("not found")
+	}
+}
+
 func (c *Cli) Kill(query string) {
 	if a, ok := c.deployer.GetApp(query); ok {
 		_ = c.deployer.Kill(a)
@@ -133,6 +157,7 @@ func (c *Cli) Kill(query string) {
 		fmt.Println("not found")
 	}
 }
+
 func (c *Cli) Remove(query string) {
 	if appJson, ok := c.deployer.GetAppD(query); ok {
 		if a, ok := c.deployer.GetApp(appJson.Id); ok {
@@ -237,6 +262,9 @@ func printHelp() {
 
 	fmt.Printf(HELP_FORMAT, "find", "[dep|run] [app|id]", "list apps based on search")
 	fmt.Printf(HELP_FORMAT, "", "", "terms")
+
+	fmt.Printf(HELP_FORMAT, "update", "<app|id>", "update app with specified")
+	fmt.Printf(HELP_FORMAT, "", "", "name or id")
 
 	fmt.Printf(HELP_FORMAT, "kill", "<app|id>", "kill app with specified")
 	fmt.Printf(HELP_FORMAT, "", "", "name or id")

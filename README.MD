@@ -89,6 +89,8 @@ start, run      <app|id>                run the deployed app
 
 find, list, ls  [dep|run] [app|id]      list apps based on search terms
 
+update          <app|id>                update app with specified name or id
+
 kill            <app|id>                kill app with specified name or id
 
 remove, rm      <app|id>                remove app with specified name or id
