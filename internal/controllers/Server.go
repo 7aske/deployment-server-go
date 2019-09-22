@@ -4,13 +4,11 @@ import (
 	"../config"
 	"../logger"
 	"../utils"
-	"bufio"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 )
 
@@ -89,12 +87,13 @@ func NewServer() {
 
 	if utils.Contains("-i", &os.Args) != -1 {
 		fmt.Println("type \"help\" or \"?\" from more information, \"q\" to quit")
-		reader := bufio.NewReader(os.Stdin)
-		for {
-			line, _, _ := reader.ReadLine()
-			args := strings.Split(string(line), " ")
-			cli.ParseCommand(args...)
-		}
+		cli.Loop()
+		//reader := bufio.NewReader(os.Stdin)
+		//for {
+		//	line, _, _ := reader.ReadLine()
+		//	args := strings.Split(string(line), " ")
+		//	cli.ParseCommand(args...)
+		//}
 	} else {
 		for {
 			time.Sleep(time.Second)

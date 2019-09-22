@@ -31,7 +31,7 @@ func (l *Logger) Log(message string) {
 	if l.currentDate != time.Now().Format(timeFormat) {
 		l.updateLogger()
 	}
-	l.logger.Println(message)
+	l.logger.Printf("%s\r\n",message)
 }
 
 func (l *Logger) updateLogger() {
