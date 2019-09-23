@@ -14,33 +14,40 @@ import (
 var cmdList []string
 var cmdListIdx = 0
 var prompt = "\r-> "
+
 const HELP_FORMAT = "%-10s\t%-20s\t%s\r\n"
 
 type Cli struct {
 	deployer *Deployer
 	running  bool
+	state    *terminal.State
 }
 
 func NewCli(d *Deployer) *Cli {
 	return &Cli{deployer: d, running: true}
 }
+
+func (c *Cli) Release() {
+	c.running = false
+	if err := terminal.Restore(0, c.state); err != nil {
+		log.Println("warning: failed to restore terminal:", err)
+	}
+}
+
 func (c *Cli) Start() {
 	state, err := terminal.MakeRaw(0)
 	if err != nil {
 		log.Fatalln("setting stdin to raw: ", err)
 	}
-	defer func() {
-		if err := terminal.Restore(0, state); err != nil {
-			log.Println("warning, failed to restore terminal:", err)
-		}
-	}()
+	c.state = state
+	defer c.Release()
 
 	in := bufio.NewReader(os.Stdin)
 
 	for c.running {
 		line := ""
 		fmt.Print(prompt)
-		for {
+		for c.running {
 			r, _, err := in.ReadRune()
 			if err != nil {
 				log.Println("stdin: ", err)
@@ -107,9 +114,9 @@ func (c *Cli) Start() {
 		c.ParseCommand(strings.Split(line, " ")...)
 		fmt.Print(prompt)
 		line = ""
-
 	}
 }
+
 func (c *Cli) ParseCommand(args ...string) {
 	if len(args) > 0 {
 		switch args[0] {

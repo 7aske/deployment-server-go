@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -68,20 +69,20 @@ func NewServer() {
 			log.Fatal(fmt.Sprintf("error starting server on port %d", cfg.GetRouterPort()))
 		}
 	}()
-
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
 	signal.Notify(c, os.Kill)
+
 	go func() {
 		for sig := range c {
-			deployer.GetLogger().Log("server killed with sig " + sig.String())
-			for _, app := range *deployer.GetApps() {
-				err := deployer.Kill(app)
-				if err != nil {
-					deployer.GetLogger().Log(err.Error())
-				}
+			switch sig {
+			case syscall.SIGTERM:
+				fallthrough
+			case syscall.SIGINT:
+				deployer.GetLogger().Log("server killed with sig " + sig.String())
+				cli.Release()
+				cleanUp(deployer)
+
 			}
-			os.Exit(0)
 		}
 	}()
 
@@ -93,4 +94,16 @@ func NewServer() {
 			time.Sleep(time.Second)
 		}
 	}
+	cleanUp(deployer)
+}
+
+func cleanUp(deployer Deployer) {
+	for _, app := range *deployer.GetApps() {
+		err := deployer.Kill(app)
+		if err != nil {
+			deployer.GetLogger().Log(err.Error())
+		}
+	}
+	time.Sleep(time.Millisecond * 1000)
+	os.Exit(0)
 }

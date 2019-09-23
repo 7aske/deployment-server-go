@@ -47,6 +47,7 @@ func New(cfg *config.Config) Deployer {
 	d.logger = logger.NewLogger(logger.LOG_DEPLOYER)
 	return d
 }
+
 func (d *Deployer) SetLogger(l *logger.Logger) {
 	d.logger = l
 }
@@ -54,6 +55,7 @@ func (d *Deployer) SetLogger(l *logger.Logger) {
 func (d *Deployer) GetLogger() *logger.Logger {
 	return d.logger
 }
+
 func (d *Deployer) GetApps() *[]*app.App {
 	return &d.apps
 }
@@ -430,6 +432,11 @@ func (d *Deployer) runNode(appToRun *app.App) error {
 			d.logger.Log(err.Error())
 			return err
 		}
+		go func() {
+			n, _ := ccont.Process.Wait()
+			d.RemoveApp(appToRun)
+			d.logger.Log(fmt.Sprintf("app %s exited with code %d\r\n", appToRun.GetName(), n.ExitCode()))
+		}()
 		appToRun.SetPid(ccont.Process.Pid)
 		appToRun.SetProcess(ccont.Process)
 	} else {
@@ -443,6 +450,12 @@ func (d *Deployer) runNode(appToRun *app.App) error {
 			d.logger.Log(err.Error())
 			return err
 		}
+		go func() {
+			n, _ := node.Process.Wait()
+			d.RemoveApp(appToRun)
+			d.logger.Log(fmt.Sprintf("app %s exited with code %d\r\n", appToRun.GetName(), n.ExitCode()))
+
+		}()
 		appToRun.SetPid(node.Process.Pid)
 		appToRun.SetProcess(node.Process)
 	}
@@ -478,6 +491,11 @@ func (d *Deployer) runWeb(appToRun *app.App) error {
 			d.logger.Log(err.Error())
 			return err
 		}
+		go func() {
+			n, _ := ccont.Process.Wait()
+			d.RemoveApp(appToRun)
+			d.logger.Log(fmt.Sprintf("app %s exited with code %d\r\n", appToRun.GetName(), n.ExitCode()))
+		}()
 		appToRun.SetPid(ccont.Process.Pid)
 		appToRun.SetProcess(ccont.Process)
 	} else {
@@ -491,6 +509,11 @@ func (d *Deployer) runWeb(appToRun *app.App) error {
 			fmt.Println(err)
 			return err
 		}
+		go func() {
+			n, _ := node.Process.Wait()
+			d.RemoveApp(appToRun)
+			d.logger.Log(fmt.Sprintf("app %s exited with code %d\r\n", appToRun.GetName(), n.ExitCode()))
+		}()
 		appToRun.SetPid(node.Process.Pid)
 		appToRun.SetProcess(node.Process)
 	}
@@ -518,6 +541,11 @@ func (d *Deployer) runPython(appToRun *app.App) error {
 			d.logger.Log(err.Error())
 			return err
 		}
+		go func() {
+			n, _ := ccont.Process.Wait()
+			d.RemoveApp(appToRun)
+			d.logger.Log(fmt.Sprintf("app %s exited with code %d\r\n", appToRun.GetName(), n.ExitCode()))
+		}()
 		appToRun.SetPid(ccont.Process.Pid)
 		appToRun.SetProcess(ccont.Process)
 	} else {
@@ -531,6 +559,11 @@ func (d *Deployer) runPython(appToRun *app.App) error {
 			d.logger.Log(err.Error())
 			return err
 		}
+		go func() {
+			n, _ := python.Process.Wait()
+			d.RemoveApp(appToRun)
+			d.logger.Log(fmt.Sprintf("app %s exited with code %d\r\n", appToRun.GetName(), n.ExitCode()))
+		}()
 		appToRun.SetPid(python.Process.Pid)
 		appToRun.SetProcess(python.Process)
 	}
@@ -565,6 +598,11 @@ func (d *Deployer) runPythonFlask(appToRun *app.App) error {
 			d.logger.Log(err.Error())
 			return err
 		}
+		go func() {
+			n, _ := ccont.Process.Wait()
+			d.RemoveApp(appToRun)
+			d.logger.Log(fmt.Sprintf("app %s exited with code %d\r\n", appToRun.GetName(), n.ExitCode()))
+		}()
 		appToRun.SetPid(ccont.Process.Pid)
 		appToRun.SetProcess(ccont.Process)
 	} else {
@@ -587,6 +625,11 @@ func (d *Deployer) runPythonFlask(appToRun *app.App) error {
 			d.logger.Log(err.Error())
 			return err
 		}
+		go func() {
+			n, _ := python.Process.Wait()
+			d.RemoveApp(appToRun)
+			d.logger.Log(fmt.Sprintf("app %s exited with code %d\r\n", appToRun.GetName(), n.ExitCode()))
+		}()
 		appToRun.SetPid(python.Process.Pid)
 		appToRun.SetProcess(python.Process)
 	}
