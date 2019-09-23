@@ -14,6 +14,7 @@ dep:
 	go get github.com/go-ini/ini
 	go get github.com/pkg/errors
 	go get github.com/teris-io/shortid
+	go get golang.org/x/crypto/ssh/terminal
 
 build: cmd/deployment-server/main.go ./client/package.json
 	mkdir -p bin

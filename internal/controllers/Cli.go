@@ -16,10 +16,6 @@ var cmdListIdx = 0
 var prompt = "\r-> "
 const HELP_FORMAT = "%-10s\t%-20s\t%s\r\n"
 
-func isAlphanumeric(c rune) bool {
-	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9')
-}
-
 type Cli struct {
 	deployer *Deployer
 	running  bool
@@ -28,7 +24,7 @@ type Cli struct {
 func NewCli(d *Deployer) *Cli {
 	return &Cli{deployer: d, running: true}
 }
-func (c *Cli) Loop() {
+func (c *Cli) Start() {
 	state, err := terminal.MakeRaw(0)
 	if err != nil {
 		log.Fatalln("setting stdin to raw: ", err)
