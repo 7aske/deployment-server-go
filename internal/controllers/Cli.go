@@ -15,7 +15,7 @@ var cmdList []string
 var cmdListIdx = 0
 var prompt = "\r-> "
 
-const HELP_FORMAT = "%-10s\t%-20s\t%s\r\n"
+const HELP_FORMAT = "  %-10s\t%-20s\t%s\r\n"
 
 type Cli struct {
 	deployer *Deployer
@@ -149,25 +149,28 @@ func (c *Cli) ParseCommand(args ...string) {
 			} else {
 				c.Update(args[1])
 			}
-		case "find", "ls", "list":
+		case "find":
 			if len(args) == 1 {
 				c.Find("", "")
 			} else if len(args) == 2 {
-				if args[1] == "dep" || args[1] == "deployed" {
-					c.Find("", "deployed")
-				} else if args[1] == "run" || args[1] == "running" {
-					c.Find("", "running")
-				} else {
-					c.Find(args[1], "")
-				}
-			} else if len(args) == 3 {
-				if args[1] == "dep" || args[1] == "run" {
-					c.Find(args[2], args[1])
-				} else if args[2] == "dep" || args[2] == "run" {
-					c.Find(args[1], args[2])
-				} else {
-					printHelp()
-				}
+				c.Find(args[1], "")
+			} else {
+				printHelp()
+
+			}
+		case "ls", "list":
+			if len(args) == 1 {
+				c.Find("", "deployed")
+			} else if len(args) == 2 {
+				c.Find(args[1], "deployed")
+			} else {
+				printHelp()
+			}
+		case "ps":
+			if len(args) == 1 {
+				c.Find("", "running")
+			} else if len(args) == 2 {
+				c.Find(args[1], "running")
 			} else {
 				printHelp()
 			}
@@ -355,8 +358,12 @@ func printHelp() {
 	fmt.Printf(HELP_FORMAT, "run", "<app|id>", "run the deployed app")
 	fmt.Printf(HELP_FORMAT, "", "", "with specified name or id")
 	fmt.Printf(HELP_FORMAT, "start", "", "run alias")
-	fmt.Printf(HELP_FORMAT, "find", "[dep|run] [app|id]", "list apps based on search")
-	fmt.Printf(HELP_FORMAT, "", "", "terms")
+	fmt.Printf(HELP_FORMAT, "find", "[dep|run] [app|id]", "list any app based on")
+	fmt.Printf(HELP_FORMAT, "", "", "search terms")
+	fmt.Printf(HELP_FORMAT, "list, ls", "[app|id]", "list deployed apps based on")
+	fmt.Printf(HELP_FORMAT, "", "", "search terms")
+	fmt.Printf(HELP_FORMAT, "ps", "[app|id]", "list running apps based on")
+	fmt.Printf(HELP_FORMAT, "", "", "search terms")
 	fmt.Printf(HELP_FORMAT, "update", "<app|id>", "update app with specified")
 	fmt.Printf(HELP_FORMAT, "", "", "name or id")
 	fmt.Printf(HELP_FORMAT, "kill", "<app|id>", "kill app with specified")
@@ -369,4 +376,5 @@ func printHelp() {
 	fmt.Printf(HELP_FORMAT, "exit", "", "quit alias")
 	fmt.Printf(HELP_FORMAT, "clear, cls", "", "clears the screen")
 	fmt.Printf(HELP_FORMAT, "pid", "", "returns the deployer pid")
+	fmt.Printf("\r\n")
 }

@@ -87,7 +87,11 @@ deploy ,dep     <repo>                  deploy app from specified
 start, run      <app|id>                run the deployed app
                                         with specified name or id
 
-find, list, ls  [dep|run] [app|id]      list apps based on search terms
+find, list, ls  [dep|run] [app|id]      list any app based on search terms
+
+list, ls        [app|id]                list deployed apps based on search terms
+
+ps              [app|id]                list running apps based on search terms
 
 update          <app|id>                update app with specified name or id
 
