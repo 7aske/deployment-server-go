@@ -64,7 +64,7 @@ func (h *Handler) HandleDeploy(w http.ResponseWriter, r *http.Request) {
 		httpresp.ResponseUnauthorized(w)
 	} else {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
-		if auth.VerifyToken(token, h.GetConfig().GetSecret()) {
+		if auth.VerifyToken(token, []byte(h.GetConfig().GetSecret())) {
 			if r.Method == http.MethodPost {
 				jsonBody := getJsonMap(&r.Body)
 				repo := jsonBody["repo"]
@@ -116,7 +116,7 @@ func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 		httpresp.ResponseUnauthorized(w)
 	} else {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
-		if auth.VerifyToken(token, h.GetConfig().GetSecret()) {
+		if auth.VerifyToken(token, []byte(h.GetConfig().GetSecret())) {
 			if r.Method == http.MethodPost {
 				body := getJsonMap(&r.Body)
 				name := body["app"]
@@ -151,7 +151,7 @@ func (h *Handler) HandleRun(w http.ResponseWriter, r *http.Request) {
 		httpresp.ResponseUnauthorized(w)
 	} else {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
-		if auth.VerifyToken(token, h.GetConfig().GetSecret()) {
+		if auth.VerifyToken(token, []byte(h.GetConfig().GetSecret())) {
 			if r.Method == http.MethodPost {
 				body := getJsonMap(&r.Body)
 				name := body["app"]
@@ -191,7 +191,7 @@ func (h *Handler) HandleFind(w http.ResponseWriter, r *http.Request) {
 		httpresp.ResponseUnauthorized(w)
 	} else {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
-		if auth.VerifyToken(token, h.GetConfig().GetSecret()) {
+		if auth.VerifyToken(token, []byte(h.GetConfig().GetSecret())) {
 			if r.Method == http.MethodGet {
 				query := r.URL.Query().Get("app")
 				as := h.GetDeployer().GetAppsAsJSON()
@@ -221,7 +221,7 @@ func (h *Handler) HandleKill(w http.ResponseWriter, r *http.Request) {
 		httpresp.ResponseUnauthorized(w)
 	} else {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
-		if auth.VerifyToken(token, h.GetConfig().GetSecret()) {
+		if auth.VerifyToken(token, []byte(h.GetConfig().GetSecret())) {
 			if r.Method == http.MethodPost {
 				body := getJsonMap(&r.Body)
 				name := body["app"]
@@ -256,7 +256,7 @@ func (h *Handler) HandleRemove(w http.ResponseWriter, r *http.Request) {
 		httpresp.ResponseUnauthorized(w)
 	} else {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
-		if auth.VerifyToken(token, h.GetConfig().GetSecret()) {
+		if auth.VerifyToken(token, []byte(h.GetConfig().GetSecret())) {
 			if r.Method == http.MethodPost {
 				body := getJsonMap(&r.Body)
 				name := body["app"]
@@ -294,7 +294,7 @@ func (h *Handler) HandleSettings(w http.ResponseWriter, r *http.Request) {
 		httpresp.ResponseUnauthorized(w)
 	} else {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
-		if auth.VerifyToken(token, h.GetConfig().GetSecret()) {
+		if auth.VerifyToken(token, []byte(h.GetConfig().GetSecret())) {
 			if r.Method == http.MethodPost {
 				req := requests.SettingsRequest{}
 				req.Read(&r.Body)
@@ -323,7 +323,7 @@ func (h *Handler) HandleRoot(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/auth", http.StatusTemporaryRedirect)
 	} else {
 		token := strings.Split(cookie.Value, "Bearer ")[1]
-		if auth.VerifyToken(token, h.GetConfig().GetSecret()) {
+		if auth.VerifyToken(token, []byte(h.GetConfig().GetSecret())) {
 			var absPth string
 			pth := strings.Replace(r.URL.String(), "/", string(filepath.Separator), -1)
 			root := "client/dist"
@@ -363,7 +363,7 @@ func (h *Handler) HandleAuth(w http.ResponseWriter, r *http.Request) {
 		auser := h.GetConfig().GetUser()
 		apass := h.GetConfig().GetPass()
 		if auth.VerifyCredentials(auser, apass, user, pass) {
-			token := auth.GenerateToken(h.GetConfig().GetSecret())
+			token := auth.GenerateToken([]byte(h.GetConfig().GetSecret()))
 			cookie := http.Cookie{Name: "Authorization", Value: fmt.Sprintf("Bearer %s", token), Path: "/", Expires: time.Now().Add(24 * time.Hour)}
 			h.logger.Log("auth - authorized " + r.RemoteAddr)
 			http.SetCookie(w, &cookie)
@@ -376,7 +376,7 @@ func (h *Handler) HandleAuth(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		if cookie, err := r.Cookie("Authorization"); err == nil {
 			token := strings.Split(cookie.Value, "Bearer ")[1]
-			if auth.VerifyToken(token, h.GetConfig().GetSecret()) {
+			if auth.VerifyToken(token, []byte(h.GetConfig().GetSecret())) {
 				http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 				break
 			}

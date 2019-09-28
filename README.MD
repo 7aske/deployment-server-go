@@ -102,6 +102,8 @@ remove, rm      <app|id>                remove app with specified name or id
 settings        <app|id> <key=value>    change the settings of a deployed
                                         app based on name or id
 
+config          <key> <value>           change the config file settings
+
 quit, q                                 exits the application
 exit
 

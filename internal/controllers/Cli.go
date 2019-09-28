@@ -196,7 +196,7 @@ func (c *Cli) ParseCommand(args ...string) {
 			if len(args) == 3 {
 				c.Config(args[1], args[2])
 			} else {
-				printHelp()
+				c.deployer.config.PrintFields()
 			}
 		default:
 			fmt.Printf("unrecognized command \"%s\"\r\n", args[0])
@@ -349,10 +349,14 @@ func (c *Cli) Settings(query string, setting string) {
 	}
 }
 func (c *Cli) Config(key string, value string) {
-
+	if c.deployer.config.Set(key, value) {
+		fmt.Printf("config updated successfully\r\n")
+	} else {
+		fmt.Printf("invalid key/value\r\n")
+	}
 }
 func printHelp() {
-	fmt.Print("deployment-server 0.0.1 == Nikola Tasic == github.com/7aske\r\n\r\n")
+	fmt.Print("deployment-server 0.0.3 == Nikola Tasic == github.com/7aske\r\n\r\n")
 	fmt.Printf(HELP_FORMAT, "deploy, dep", "<repo-url>", "deploy app from specified")
 	fmt.Printf(HELP_FORMAT, "", "", "github repository")
 	fmt.Printf(HELP_FORMAT, "run", "<app|id>", "run the deployed app")
@@ -372,6 +376,7 @@ func printHelp() {
 	fmt.Printf(HELP_FORMAT, "", "", "name or id")
 	fmt.Printf(HELP_FORMAT, "settings", "<app|id> <key=value>", "change the settings of a deployed")
 	fmt.Printf(HELP_FORMAT, "", "", "app based on name or id")
+	fmt.Printf(HELP_FORMAT, "config", "<key> <value>", "change the config file settings")
 	fmt.Printf(HELP_FORMAT, "quit, q", "", "exits the application")
 	fmt.Printf(HELP_FORMAT, "exit", "", "quit alias")
 	fmt.Printf(HELP_FORMAT, "clear, cls", "", "clears the screen")

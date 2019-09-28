@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -112,9 +113,35 @@ func GetNameFromRepo(repo string) string {
 	return string(reg.Find([]byte(repo)))
 }
 
+func PathExits(pth string) bool {
+	_, err := os.Stat(pth)
+	return err == nil
+}
+
 func MakeDirIfNotExist(pth string) {
-	if _, err := os.Stat(pth); err != nil {
+	if !PathExits(pth) {
 		_ = os.MkdirAll(pth, 0775)
+	}
+}
+
+func MakeFileIfNotExist(pth string) {
+	if !PathExits(pth) {
+		_ = os.MkdirAll(path.Dir(pth), 0775)
+		fp, _ := os.Create(pth)
+		_ = fp.Close()
+		gid := os.Getgid()
+		uid := os.Getuid()
+		if gid == 0 {
+			if id, err := strconv.Atoi(os.Getenv("SUDO_GID")); err == nil {
+				gid = id
+			}
+		}
+		if uid == 0 {
+			if id, err := strconv.Atoi(os.Getenv("SUDO_UID")); err == nil {
+				uid = id
+			}
+		}
+		_ = os.Chown(pth, uid, gid)
 	}
 }
 
@@ -143,7 +170,7 @@ func GetAbsDir(pth string) string {
 
 func VerifyCcont() bool {
 	fmt.Println("verifying ccont")
-	return exec.Command("ccont", "-l").Run()  == nil
+	return exec.Command("ccont", "-l").Run() == nil
 }
 
 func AppendProtocol(repo string) (string, error) {
