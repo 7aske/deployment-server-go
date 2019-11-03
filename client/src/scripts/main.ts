@@ -89,7 +89,7 @@ class PopupDialog {
 	private popup: HTMLElement | null;
 	private readonly backdrop: HTMLElement | null;
 	private store: Store;
-	
+
 	constructor(store: Store) {
 		this.store = store;
 		this.initStates();
@@ -536,6 +536,9 @@ function getRunnerIcon(runner: string): string {
 		case "web":
 			r = "html5";
 			break;
+		case "npm":
+			r = "npm";
+			break;
 		case "python":
 			r = "python";
 			break;
@@ -636,6 +639,7 @@ function settingsTemplate(app: App): string {
 				</div>
 				<select class="custom-select" name="runner" id="runnerSettings">
 					<option ${app.runner == "node" ? "selected" : ""} value="node">Node</option>
+					<option ${app.runner == "npm" ? "selected" : ""} value="npm">Npm</option>
 					<option ${app.runner == "web" ? "selected" : ""} value="web">Web</option>
 					<option ${app.runner == "python" ? "selected" : ""} value="python">Python</option>
 					<option ${app.runner == "flask" ? "selected" : ""} value="flask">Flask</option>
@@ -706,7 +710,7 @@ function doAction(event: Event) {
 					} else {
 						const response = await res.json();
 						setTimeout(() => {
-							popup.open("Error", response.message.toString().toLocaleUpperCase(),);
+							popup.open("Error", response.message.toString().toLocaleUpperCase());
 						}, 200);
 					}
 					store.setState("loading", false);

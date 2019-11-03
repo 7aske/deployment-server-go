@@ -43,7 +43,7 @@ func New(cfg *config.Config) Deployer {
 	utils.MakeDirIfNotExist(path.Join(cfg.GetCwd(), cfg.GetAppsRoot()))
 	d.initAppsJson()
 	d.GetDeployedApps()
-	d.runners = []string{"node", "web", "python", "flask"}
+	d.runners = []string{"node", "web", "python", "flask", "npm"}
 	d.logger = logger.NewLogger(logger.LOG_DEPLOYER)
 	return d
 }
@@ -236,6 +236,19 @@ func (d *Deployer) Install(appToInstall *app.App) error {
 			d.logger.Log("install - npm install finished " + appToInstall.GetName())
 			return nil
 		}
+	case "npm":
+		npm := exec.Command("npm", "install")
+		npm.Dir = appToInstall.GetRoot()
+		npm.Stdout = os.Stdout
+		npm.Stderr = os.Stderr
+		err := npm.Run()
+		if err != nil {
+			d.logger.Log(err.Error())
+			return err
+		} else {
+			d.logger.Log("install - npm install finished " + appToInstall.GetName())
+			return nil
+		}
 	case "web":
 		npm := exec.Command("npm", "install")
 		npm.Dir = appToInstall.GetRoot()
@@ -271,6 +284,8 @@ func (d *Deployer) Run(appToRun *app.App) error {
 	switch appToRun.GetRunner() {
 	case "node":
 		return d.runNode(appToRun)
+	case "npm":
+		return d.runNpm(appToRun)
 	case "web":
 		return d.runWeb(appToRun)
 	case "python":
@@ -435,14 +450,15 @@ func (d *Deployer) runNode(appToRun *app.App) error {
 		go func() {
 			n, _ := ccont.Process.Wait()
 			d.RemoveApp(appToRun)
-			d.logger.Log(fmt.Sprintf("app %s exited with code %d\r\n", appToRun.GetName(), n.ExitCode()))
+			d.logger.Log(fmt.Sprintf("run - app %s exited with code %d\r\n", appToRun.GetName(), n.ExitCode()))
 		}()
 		appToRun.SetPid(ccont.Process.Pid)
 		appToRun.SetProcess(ccont.Process)
 	} else {
 		node := exec.Command("node", packageJson.Main)
 		node.Dir = appToRun.GetRoot()
-		node.Env = append(node.Env, fmt.Sprintf("CONT_PORT=%d", port))
+		node.Env = os.Environ()
+		node.Env = append(node.Env, fmt.Sprintf("PORT=%d", port))
 		node.Stdout = os.Stdout
 		node.Stderr = os.Stderr
 		err = node.Start()
@@ -453,7 +469,68 @@ func (d *Deployer) runNode(appToRun *app.App) error {
 		go func() {
 			n, _ := node.Process.Wait()
 			d.RemoveApp(appToRun)
-			d.logger.Log(fmt.Sprintf("app %s exited with code %d\r\n", appToRun.GetName(), n.ExitCode()))
+			d.logger.Log(fmt.Sprintf("run - app %s exited with code %d\r\n", appToRun.GetName(), n.ExitCode()))
+
+		}()
+		appToRun.SetPid(node.Process.Pid)
+		appToRun.SetProcess(node.Process)
+	}
+
+	appToRun.SetLastRun(time.Now())
+	d.AddApp(appToRun)
+	d.SaveAppToJson(d.GetAppAsJSON(appToRun))
+	d.logger.Log(fmt.Sprintf("run - starting %s server with pid - %d on port %d", appToRun.GetRunner(), appToRun.GetPid(), appToRun.GetPort()))
+	return nil
+}
+func (d *Deployer) runNpm(appToRun *app.App) error {
+	packageJSONFile, _ := ioutil.ReadFile(path.Join(appToRun.GetRoot(), "package.json"))
+	packageJson := PackageJSON{}
+	err := json.Unmarshal(packageJSONFile, &packageJson)
+	if err != nil {
+		d.logger.Log(err.Error())
+		return err
+	}
+	port := appToRun.GetPort()
+	if port == 0 {
+		appToRun.SetPort(d.generatePort())
+		port = appToRun.GetPort()
+	}
+
+	if d.config.GetContainer() {
+		ccont := exec.Command("ccont", "--copy=node-cont", appToRun.GetId(), "-c", "npm", "run", "start")
+		ccont.Dir = appToRun.GetRoot()
+		ccont.Env = os.Environ()
+		ccont.Env = append(ccont.Env, fmt.Sprintf("CONT_PORT=%d", port))
+		ccont.Stdout = os.Stdout
+		ccont.Stderr = os.Stderr
+		err = ccont.Start()
+		if err != nil {
+			d.logger.Log(err.Error())
+			return err
+		}
+		go func() {
+			n, _ := ccont.Process.Wait()
+			d.RemoveApp(appToRun)
+			d.logger.Log(fmt.Sprintf("run - app %s exited with code %d\r\n", appToRun.GetName(), n.ExitCode()))
+		}()
+		appToRun.SetPid(ccont.Process.Pid)
+		appToRun.SetProcess(ccont.Process)
+	} else {
+		node := exec.Command("npm", "run", "start")
+		node.Dir = appToRun.GetRoot()
+		node.Env = os.Environ()
+		node.Env = append(node.Env, fmt.Sprintf("PORT=%d", port))
+		node.Stdout = os.Stdout
+		node.Stderr = os.Stderr
+		err = node.Start()
+		if err != nil {
+			d.logger.Log(err.Error())
+			return err
+		}
+		go func() {
+			n, _ := node.Process.Wait()
+			d.RemoveApp(appToRun)
+			d.logger.Log(fmt.Sprintf("run - app %s exited with code %d\r\n", appToRun.GetName(), n.ExitCode()))
 
 		}()
 		appToRun.SetPid(node.Process.Pid)
@@ -501,6 +578,7 @@ func (d *Deployer) runWeb(appToRun *app.App) error {
 	} else {
 		node := exec.Command("node", path.Join(d.GetConfig().GetCwd(), d.GetConfig().GetBasicServer()))
 		node.Dir = appToRun.GetRoot()
+		node.Env = os.Environ()
 		node.Env = append(node.Env, fmt.Sprintf("PORT=%d", port))
 		node.Stdout = os.Stdout
 		node.Stderr = os.Stderr
@@ -551,6 +629,7 @@ func (d *Deployer) runPython(appToRun *app.App) error {
 	} else {
 		python := exec.Command("python3", "__main__.py")
 		python.Dir = appToRun.GetRoot()
+		python.Env = os.Environ()
 		python.Env = append(python.Env, fmt.Sprintf("PORT=%d", port))
 		python.Stdout = os.Stdout
 		python.Stderr = os.Stderr
@@ -617,6 +696,7 @@ func (d *Deployer) runPythonFlask(appToRun *app.App) error {
 		}
 		python := exec.Command("flask", "run", "--host=\"0.0.0.0\"")
 		python.Dir = appToRun.GetRoot()
+		python.Env = os.Environ()
 		python.Env = append(python.Env, fmt.Sprintf("FLASK_RUN_PORT=%d", port))
 		python.Stdout = os.Stdout
 		python.Stderr = os.Stderr
