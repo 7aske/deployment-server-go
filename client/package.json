@@ -17,7 +17,7 @@
     "@types/jquery": "^3.3.29",
     "@types/jwt-decode": "^2.2.1",
     "bootstrap": "^4.3.1",
-    "jquery": "^3.3.1",
+    "jquery": "^3.5.0",
     "jwt-decode": "^2.2.0"
   }
 }
